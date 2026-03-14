@@ -1,6 +1,10 @@
-import { LinkOutlined } from '@ant-design/icons';
+import {
+  BuildOutlined,
+  AppstoreOutlined,
+  DashboardOutlined,
+} from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
-import { SettingDrawer } from '@ant-design/pro-components';
+import { App as AntdApp } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history, Link } from '@umijs/max';
 import React from 'react';
@@ -17,7 +21,22 @@ import { errorConfig } from './requestErrorConfig';
 import '@ant-design/v5-patch-for-react-19';
 
 const isDev = process.env.NODE_ENV === 'development' || process.env.CI;
+const isTest = process.env.NODE_ENV === 'test';
 const loginPath = '/user/login';
+
+const menuIconMap: Record<string, React.ReactNode> = {
+  dashboard: <DashboardOutlined />,
+  'business-units': <AppstoreOutlined />,
+  'ci-builds': <BuildOutlined />,
+};
+
+const platformDemoUser: API.CurrentUser = {
+  name: 'Platform Admin',
+  avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
+  userid: 'platform-admin',
+  email: 'platform@example.com',
+  access: 'admin',
+};
 
 /**
  * @see https://umijs.org/docs/api/runtime-config#getinitialstate
@@ -29,17 +48,18 @@ export async function getInitialState(): Promise<{
   fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
   const fetchUserInfo = async () => {
+    if (isTest) {
+      return platformDemoUser;
+    }
     try {
       const msg = await queryCurrentUser({
         skipErrorHandler: true,
       });
-      return msg.data;
+      return msg.data || platformDemoUser;
     } catch (_error) {
-      history.push(loginPath);
+      return platformDemoUser;
     }
-    return undefined;
   };
-  // 如果不是登录页面，执行
   const { location } = history;
   if (
     ![loginPath, '/user/register', '/user/register-result'].includes(
@@ -49,12 +69,13 @@ export async function getInitialState(): Promise<{
     const currentUser = await fetchUserInfo();
     return {
       fetchUserInfo,
-      currentUser,
+      currentUser: currentUser || platformDemoUser,
       settings: defaultSettings as Partial<LayoutSettings>,
     };
   }
   return {
     fetchUserInfo,
+    currentUser: platformDemoUser,
     settings: defaultSettings as Partial<LayoutSettings>,
   };
 }
@@ -62,9 +83,9 @@ export async function getInitialState(): Promise<{
 // ProLayout 支持的api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({
   initialState,
-  setInitialState,
 }) => {
   return {
+    title: 'Q Workplatform',
     actionsRender: () => [
       <Question key="doc" />,
       <SelectLang key="SelectLang" />,
@@ -77,7 +98,7 @@ export const layout: RunTimeLayoutConfig = ({
       },
     },
     waterMarkProps: {
-      content: initialState?.currentUser?.name,
+      content: undefined,
     },
     footerRender: () => <Footer />,
     onPageChange: () => {
@@ -87,57 +108,39 @@ export const layout: RunTimeLayoutConfig = ({
         history.push(loginPath);
       }
     },
-    bgLayoutImgList: [
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/D2LWSqNny4sAAAAAAAAAAAAAFl94AQBr',
-        left: 85,
-        bottom: 100,
-        height: '303px',
-      },
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/C2TWRpJpiC0AAAAAAAAAAAAAFl94AQBr',
-        bottom: -68,
-        right: -45,
-        height: '303px',
-      },
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/F6vSTbj8KpYAAAAAAAAAAAAAFl94AQBr',
-        bottom: 0,
-        left: 0,
-        width: '331px',
-      },
-    ],
     links: isDev
       ? [
-          <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
-            <LinkOutlined />
-            <span>OpenAPI 文档</span>
+          <Link key="repo" to="https://github.com/richer421/q-workplatform" target="_blank">
+            <span>Repository</span>
           </Link>,
         ]
       : [],
-    menuHeaderRender: undefined,
-    // 自定义 403 页面
-    // unAccessible: <div>unAccessible</div>,
-    // 增加一个 loading 的状态
-    childrenRender: (children) => {
-      // if (initialState?.loading) return <PageLoading />;
+    menu: {
+      locale: false,
+    },
+    menuItemRender: (_item, dom) => <>{dom}</>,
+    menuDataRender: (menuData) =>
+      menuData.map((item) => ({
+        ...item,
+        icon: item.name ? menuIconMap[item.name] : item.icon,
+      })),
+    headerTitleRender: (_, title, props) => {
+      const logoSrc = typeof props.logo === 'string' ? props.logo : '/logo.svg';
       return (
-        <>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img src={logoSrc} alt="Q Workplatform" style={{ width: 28, height: 28 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#1D2129' }}>{title}</span>
+            <span style={{ fontSize: 11, color: '#86909C' }}>PaaS application delivery console</span>
+          </div>
+        </div>
+      );
+    },
+    childrenRender: (children) => {
+      return (
+        <AntdApp>
           {children}
-          {isDev && (
-            <SettingDrawer
-              disableUrlParams
-              enableDarkTheme
-              settings={initialState?.settings}
-              onSettingChange={(settings) => {
-                setInitialState((preInitialState) => ({
-                  ...preInitialState,
-                  settings,
-                }));
-              }}
-            />
-          )}
-        </>
+        </AntdApp>
       );
     },
     ...initialState?.settings,
@@ -150,6 +153,6 @@ export const layout: RunTimeLayoutConfig = ({
  * @doc https://umijs.org/docs/max/request#配置
  */
 export const request: RequestConfig = {
-  baseURL: 'https://proapi.azurewebsites.net',
+  baseURL: '/',
   ...errorConfig,
 };

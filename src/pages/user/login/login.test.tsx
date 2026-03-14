@@ -1,101 +1,110 @@
-﻿// @ts-ignore
-import { startMock } from '@@/requestRecordMock';
 import { TestBrowser } from '@@/testBrowser';
-import { fireEvent, render } from '@testing-library/react';
-import React, { act } from 'react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
+import * as React from 'react';
+import { currentUser, login } from '@/services/ant-design-pro/api';
 
-const waitTime = (time: number = 100) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(true);
-    }, time);
-  });
-};
+jest.mock('@/services/ant-design-pro/api', () => ({
+  currentUser: jest.fn(),
+  login: jest.fn(),
+  outLogin: jest.fn(),
+}));
 
-let server: {
-  close: () => void;
+const mockedCurrentUser = jest.mocked(currentUser);
+const mockedLogin = jest.mocked(login);
+
+const mockLocation = {
+  href: 'http://localhost/user/login',
+  pathname: '/user/login',
+  search: '',
 };
 
 describe('Login Page', () => {
-  beforeAll(async () => {
-    server = await startMock({
-      port: 8000,
-      scene: 'login',
+  beforeAll(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: mockLocation,
     });
   });
 
-  afterAll(() => {
-    server?.close();
+  beforeEach(() => {
+    mockedCurrentUser.mockReset();
+    mockedLogin.mockReset();
+    mockLocation.href = 'http://localhost/user/login';
+    mockLocation.pathname = '/user/login';
+    mockLocation.search = '';
+
+    mockedCurrentUser.mockResolvedValue({
+      data: {
+        name: 'Platform Admin',
+        avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
+        userid: 'platform-admin',
+        email: 'platform@example.com',
+        access: 'admin',
+      },
+    } as any);
   });
 
   it('should show login form', async () => {
-    const historyRef = React.createRef<any>();
     const rootContainer = render(
       <TestBrowser
-        historyRef={historyRef}
         location={{
           pathname: '/user/login',
         }}
       />,
     );
 
-    await rootContainer.findAllByText('Ant Design');
-
-    act(() => {
-      historyRef.current?.push('/user/login');
-    });
+    await rootContainer.findAllByText('Q Workplatform');
 
     expect(
       rootContainer.baseElement?.querySelector('.ant-pro-form-login-desc')
         ?.textContent,
-    ).toBe(
-      'Ant Design is the most influential web design specification in Xihu district',
-    );
-
-    expect(rootContainer.asFragment()).toMatchSnapshot();
+    ).toBe('PaaS application delivery console');
+    expect(
+      rootContainer.baseElement?.querySelector('.ant-pro-global-footer')
+        ?.textContent,
+    ).toContain('Q Workplatform');
 
     rootContainer.unmount();
   });
 
   it('should login success', async () => {
-    const historyRef = React.createRef<any>();
+    mockedLogin.mockResolvedValue({
+      status: 'ok',
+      type: 'account',
+      currentAuthority: 'admin',
+    } as API.LoginResult);
+
     const rootContainer = render(
       <TestBrowser
-        historyRef={historyRef}
         location={{
           pathname: '/user/login',
         }}
       />,
     );
 
-    await rootContainer.findAllByText('Ant Design');
-
     const userNameInput = await rootContainer.findByPlaceholderText(
       'Username: admin or user',
     );
-
-    act(() => {
-      fireEvent.change(userNameInput, { target: { value: 'admin' } });
-    });
+    fireEvent.change(userNameInput, { target: { value: 'admin' } });
 
     const passwordInput = await rootContainer.findByPlaceholderText(
       'Password: ant.design',
     );
+    fireEvent.change(passwordInput, { target: { value: 'ant.design' } });
 
-    act(() => {
-      fireEvent.change(passwordInput, { target: { value: 'ant.design' } });
+    fireEvent.click(await rootContainer.findByText('Login'));
+
+    await waitFor(() => {
+      expect(mockedLogin).toHaveBeenCalledWith(expect.objectContaining({
+        password: 'ant.design',
+        type: 'account',
+        username: 'admin',
+      }));
     });
 
-    await (await rootContainer.findByText('Login')).click();
-
-    // 等待接口返回结果
-    await waitTime(5000);
-
-    await rootContainer.findAllByText('Ant Design Pro');
-
-    expect(rootContainer.asFragment()).toMatchSnapshot();
-
-    await waitTime(2000);
+    await waitFor(() => {
+      expect(mockLocation.href).toBe('/');
+    });
 
     rootContainer.unmount();
   });

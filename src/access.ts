@@ -7,5 +7,6 @@ export default function access(
   const { currentUser } = initialState ?? {};
   return {
     canAdmin: currentUser && currentUser.access === 'admin',
+    canPlatformView: !!currentUser,
   };
 }

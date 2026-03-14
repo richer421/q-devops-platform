@@ -1,7 +1,6 @@
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import { SelectLang as UmiSelectLang } from '@umijs/max';
-
-export type SiderTheme = 'light' | 'dark';
+import React from 'react';
 
 export const SelectLang: React.FC = () => {
   return (
@@ -16,13 +15,13 @@ export const SelectLang: React.FC = () => {
 export const Question: React.FC = () => {
   return (
     <a
-      href="https://pro.ant.design/docs/getting-started"
+      href="https://github.com/richer421/q-paas-studio"
       target="_blank"
       rel="noreferrer"
       style={{
         display: 'inline-flex',
         padding: '4px',
-        fontSize: '18px',
+        fontSize: 18,
         color: 'inherit',
       }}
     >

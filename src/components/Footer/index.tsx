@@ -1,4 +1,3 @@
-import { GithubOutlined } from '@ant-design/icons';
 import { DefaultFooter } from '@ant-design/pro-components';
 import React from 'react';
 
@@ -6,26 +5,21 @@ const Footer: React.FC = () => {
   return (
     <DefaultFooter
       style={{
-        background: 'none',
+        background: 'transparent',
+        paddingBlock: 12,
       }}
-      copyright="Powered by Ant Desgin"
+      copyright="Q Workplatform"
       links={[
         {
-          key: 'Ant Design Pro',
-          title: 'Ant Design Pro',
-          href: 'https://pro.ant.design',
+          key: 'studio',
+          title: 'Q PaaS Studio',
+          href: 'https://github.com/richer421/q-paas-studio',
           blankTarget: true,
         },
         {
-          key: 'github',
-          title: <GithubOutlined />,
-          href: 'https://github.com/ant-design/ant-design-pro',
-          blankTarget: true,
-        },
-        {
-          key: 'Ant Design',
-          title: 'Ant Design',
-          href: 'https://ant.design',
+          key: 'workplatform',
+          title: 'q-workplatform',
+          href: 'https://github.com/richer421/q-workplatform',
           blankTarget: true,
         },
       ]}

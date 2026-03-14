@@ -183,10 +183,8 @@ const Login: React.FC = () => {
             maxWidth: '75vw',
           }}
           logo={<img alt="logo" src="/logo.svg" />}
-          title="Ant Design"
-          subTitle={intl.formatMessage({
-            id: 'pages.layouts.userLayout.title',
-          })}
+          title="Q Workplatform"
+          subTitle="PaaS application delivery console"
           initialValues={{
             autoLogin: true,
           }}
