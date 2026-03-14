@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,6 +10,7 @@ import {
 } from '../../components/business/BusinessModal';
 import { BusinessTable } from '../../components/business/BusinessTable';
 import { BusinessToolbar } from '../../components/business/BusinessToolbar';
+import { PageHeader } from '../../components/layout/page-header';
 import { businesses, type BusinessUnit } from '../../data';
 
 const emptyBusinessForm: BusinessFormValue = {
@@ -74,24 +76,28 @@ export function BusinessListPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-[#E5E6EB] bg-white px-6 py-4">
-        <div className="mb-2 flex items-center gap-1">
-          <span className="text-[#C9CDD4]" style={{ fontSize: 12 }}>
-            Q DevOps Platform
-          </span>
-          <span className="text-[#C9CDD4]" style={{ fontSize: 12 }}>
-            /
-          </span>
-          <span className="text-[#86909C]" style={{ fontSize: 12 }}>
-            业务中心
-          </span>
-        </div>
-      </div>
-      <BusinessToolbar
-        value={keyword}
-        onChange={setKeyword}
-        count={filteredBusinesses.length}
-        onCreate={() => setCreateOpen(true)}
+      <PageHeader
+        breadcrumbs={[{ label: 'Q DevOps Platform' }, { label: '我的业务' }]}
+        title="我的业务"
+        description="统一管理业务的上下文信息，团队成员围绕同一业务视图展开协作"
+        action={(
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-[#1664FF] px-4 text-white transition-colors hover:bg-[#0E50D3]"
+            style={{ fontSize: 13, fontWeight: 500 }}
+          >
+            <Plus size={15} />
+            新建业务单元
+          </button>
+        )}
+        footer={(
+          <BusinessToolbar
+            value={keyword}
+            onChange={setKeyword}
+            count={filteredBusinesses.length}
+          />
+        )}
       />
       <BusinessTable
         businesses={filteredBusinesses}

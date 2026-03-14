@@ -8,6 +8,6 @@ export type NavigationItem = {
 };
 
 export const navigationItems: NavigationItem[] = [
-  { label: '业务中心', path: '/business', icon: Box },
+  { label: '我的业务', path: '/business', icon: Box },
   { label: 'CI&CD 工作台', path: '/cicd', icon: Zap },
 ];

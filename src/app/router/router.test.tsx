@@ -6,7 +6,7 @@ describe('app router', () => {
   it('redirects the root route to /business', async () => {
     render(<AppRouter kind="memory" initialEntries={['/']} />);
 
-    expect(await screen.findByRole('heading', { name: '业务中心' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '我的业务' })).toBeInTheDocument();
   });
 
   it('keeps the cicd navigation item active on /cicd', async () => {

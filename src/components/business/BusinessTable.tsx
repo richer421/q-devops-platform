@@ -32,7 +32,7 @@ export function BusinessTable({
         </thead>
         <tbody className="divide-y divide-[#F2F3F5]">
           {businesses.map((business) => (
-            <tr key={business.id} className="group transition-colors hover:bg-[#FAFAFA]">
+            <tr key={business.id} className="transition-colors hover:bg-[#FAFAFA]">
               <td className="px-5 py-3.5">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#E8F3FF]">
@@ -92,7 +92,7 @@ export function BusinessTable({
                 </span>
               </td>
               <td className="px-5 py-3.5">
-                <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => onOpenDetail(business.id)}
