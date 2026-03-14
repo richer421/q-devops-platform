@@ -14,7 +14,7 @@ export function CicdPage() {
       <div className="border-b border-[#E5E6EB] bg-white px-6 py-4">
         <div className="mb-2 flex items-center gap-1">
           <span className="text-[#C9CDD4]" style={{ fontSize: 12 }}>
-            AppDelivery
+            Q DevOps Platform
           </span>
           <span className="text-[#C9CDD4]" style={{ fontSize: 12 }}>
             /

@@ -25,7 +25,7 @@ export function AppShell() {
                 className="whitespace-nowrap text-[#1D2129]"
                 style={{ fontSize: 14, fontWeight: 600, lineHeight: '20px' }}
               >
-                AppDelivery
+                Q DevOps Platform
               </div>
               <div
                 className="whitespace-nowrap text-[#86909C]"

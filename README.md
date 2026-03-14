@@ -1,6 +1,6 @@
-# q-workplatform
+# q-devops-platform
 
-Q PaaS frontend workplatform rebuilt with React, Vite, and Tailwind CSS.
+Q PaaS frontend devops platform rebuilt with React, Vite, and Tailwind CSS.
 
 ## Development
 

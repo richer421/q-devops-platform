@@ -1,9 +1,9 @@
 {
-  "name": "q-workplatform",
+  "name": "q-devops-platform",
   "version": "0.1.0",
   "private": true,
-  "description": "Q PaaS frontend workplatform rebuilt with React, Vite, and Tailwind CSS",
-  "repository": "https://github.com/richer421/q-workplatform.git",
+  "description": "Q PaaS frontend devops platform rebuilt with React, Vite, and Tailwind CSS",
+  "repository": "https://github.com/richer421/q-devops-platform.git",
   "type": "module",
   "packageManager": "pnpm@10.30.3",
   "engines": {
