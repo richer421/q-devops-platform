@@ -20,6 +20,11 @@ yarn.lock
 package-lock.json
 *bak
 .vscode
+*.tsbuildinfo
+*.d.ts
+vite.config.js
+vitest.config.js
+tailwind.config.js
 
 
 # visual studio code

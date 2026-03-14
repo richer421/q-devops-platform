@@ -1,32 +1,24 @@
 # q-workplatform
 
-Frontend workspace for the Q PaaS platform, bootstrapped with [Ant Design Pro](https://pro.ant.design).
-
-## Prerequisites
-
-- Node.js 20+
-- npm 10+
-
-## Install
-
-```bash
-npm install
-```
+Q PaaS frontend workplatform rebuilt with React, Vite, and Tailwind CSS.
 
 ## Development
 
 ```bash
-npm start
+make install
+make dev
 ```
 
-## Common Commands
+## Quality
 
 ```bash
-npm run build
-npm run lint
-npm test
+make lint
+make test
+make build
 ```
 
-## Notes
+## Docker
 
-This repository is intended to be managed as a submodule inside the `q-paas-studio` workspace.
+```bash
+make docker-build
+```
