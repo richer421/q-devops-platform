@@ -1,3 +1,5 @@
+import { Button, Empty, Space, Table, Tag, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { ExternalLink } from 'lucide-react';
 import type { BusinessUnit } from '../../data';
 
@@ -14,122 +16,103 @@ export function BusinessTable({
   onEdit,
   onDelete,
 }: BusinessTableProps) {
+  const columns: ColumnsType<BusinessUnit> = [
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      align: 'center',
+      render: (_, business) => (
+        <Button
+          type="link"
+          onClick={() => onOpenDetail(business.id)}
+          style={{ fontSize: 13 }}
+        >
+          {business.name}
+        </Button>
+      ),
+    },
+    {
+      title: '描述',
+      dataIndex: 'desc',
+      key: 'desc',
+      render: (value: string) => <Typography.Text type="secondary">{value || '—'}</Typography.Text>,
+    },
+    {
+      title: '代码库',
+      dataIndex: 'repoUrl',
+      key: 'repoUrl',
+      render: (repoUrl: string) =>
+        repoUrl ? (
+          <a
+            href={repoUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <ExternalLink size={12} />
+            <span>{repoUrl.replace('https://', '')}</span>
+          </a>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 80,
+      render: (status: BusinessUnit['status']) => (
+        <Tag
+          color={status === 'active' ? 'success' : 'default'}
+          style={{ fontSize: 12, lineHeight: '18px', marginInlineEnd: 0 }}
+        >
+          {status === 'active' ? '正常' : '停用'}
+        </Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 300,
+      fixed: 'right',
+      render: (_, business) => (
+        <Space size={8}>
+          <Button size="small" style={{ fontSize: 12 }} onClick={() => onOpenDetail(business.id)}>
+            详情
+          </Button>
+          <Button size="small" style={{ fontSize: 12 }} onClick={() => onEdit(business.id)}>
+            编辑
+          </Button>
+          <Button size="small" danger style={{ fontSize: 12 }} onClick={() => onDelete(business.id)}>
+            删除
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
-    <div className="flex-1 overflow-auto bg-white">
-      <table className="w-full">
-        <thead className="sticky top-0 z-10">
-          <tr className="border-b border-[#F2F3F5] bg-[#FAFAFA]">
-            {['名称', '描述', '代码库', '状态', '操作'].map((header) => (
-              <th
-                key={header}
-                className="px-5 py-3 text-left text-[#86909C]"
-                style={{ fontSize: 12, fontWeight: 500 }}
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[#F2F3F5]">
-          {businesses.map((business) => (
-            <tr key={business.id} className="transition-colors hover:bg-[#FAFAFA]">
-              <td className="px-5 py-3.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#E8F3FF]">
-                    <span className="text-[#1664FF]" style={{ fontSize: 13, fontWeight: 700 }}>
-                      {business.name[0].toUpperCase()}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onOpenDetail(business.id)}
-                    className="text-left text-[#1664FF] hover:underline"
-                    style={{ fontSize: 13, fontWeight: 500 }}
-                  >
-                    {business.name}
-                  </button>
-                </div>
-              </td>
-              <td className="max-w-xs px-5 py-3.5 text-[#4E5969]" style={{ fontSize: 13 }}>
-                <span className="line-clamp-1">{business.desc || '—'}</span>
-              </td>
-              <td className="px-5 py-3.5">
-                {business.repoUrl ? (
-                  <a
-                    href={business.repoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[#1664FF] hover:underline"
-                    style={{ fontSize: 12 }}
-                  >
-                    <ExternalLink size={11} />
-                    <span className="max-w-[180px] truncate">
-                      {business.repoUrl.replace('https://', '')}
-                    </span>
-                  </a>
-                ) : (
-                  <span className="text-[#C9CDD4]" style={{ fontSize: 13 }}>
-                    —
-                  </span>
-                )}
-              </td>
-              <td className="px-5 py-3.5">
-                <span
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5"
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 500,
-                    background: business.status === 'active' ? '#E8FFEA' : '#F2F3F5',
-                    color: business.status === 'active' ? '#00B42A' : '#86909C',
-                  }}
-                >
-                  <div
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      business.status === 'active' ? 'bg-[#00B42A]' : 'bg-[#86909C]'
-                    }`}
-                  />
-                  {business.status === 'active' ? '正常' : '停用'}
-                </span>
-              </td>
-              <td className="px-5 py-3.5">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onOpenDetail(business.id)}
-                    className="h-7 rounded-lg border border-[#E5E6EB] px-2.5 text-[#4E5969] transition-colors hover:border-[#1664FF] hover:text-[#1664FF]"
-                    style={{ fontSize: 12 }}
-                  >
-                    详情
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onEdit(business.id)}
-                    className="h-7 rounded-lg border border-[#E5E6EB] px-2.5 text-[#4E5969] transition-colors hover:border-[#1664FF] hover:text-[#1664FF]"
-                    style={{ fontSize: 12 }}
-                  >
-                    编辑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(business.id)}
-                    className="h-7 rounded-lg border border-[#E5E6EB] px-2.5 text-[#F53F3F] transition-colors hover:border-[#F53F3F]"
-                    style={{ fontSize: 12 }}
-                  >
-                    删除
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-          {businesses.length === 0 && (
-            <tr>
-              <td colSpan={5} className="py-16 text-center text-[#86909C]" style={{ fontSize: 13 }}>
-                暂无业务单元
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+    <div data-business-table="true" style={{ height: '100%' }}>
+      <Table
+        rowKey="id"
+        columns={columns}
+        dataSource={businesses}
+        pagination={false}
+        scroll={{ x: 1000, y: '100%' }}
+        size="middle"
+        style={{ height: '100%' }}
+        locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无业务单元" /> }}
+      />
+      <style>{`
+        [data-business-table='true'] .ant-table-wrapper,
+        [data-business-table='true'] .ant-spin-nested-loading,
+        [data-business-table='true'] .ant-spin-container,
+        [data-business-table='true'] .ant-table,
+        [data-business-table='true'] .ant-table-container {
+          height: 100%;
+        }
+      `}</style>
     </div>
   );
 }

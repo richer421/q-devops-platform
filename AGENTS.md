@@ -5,7 +5,7 @@
 ## 目标
 
 - 维护一个可持续演进的前端工程。
-- 严格遵守既有技术栈版本，尤其是 Tailwind 版本。
+- 严格遵守既有技术栈版本，尤其是 Ant Design 版本。
 - 通过组件化与页面化保持结构清晰。
 
 ## 技术栈与版本（必须遵守）
@@ -23,9 +23,7 @@
 | Build | Vite | `6.3.5` |
 | Build | @vitejs/plugin-react | `4.7.0` |
 | Language | TypeScript | `5.8.2` |
-| CSS | Tailwind CSS | `3.4.19` |
-| CSS | PostCSS | `8.5.6` |
-| CSS | Autoprefixer | `10.4.21` |
+| UI | Ant Design | `5.29.3` |
 | Lint | ESLint | `9.22.0` |
 | Lint | typescript-eslint | `8.26.1` |
 | Test | Vitest | `3.0.9` |
@@ -34,7 +32,6 @@
 ### 版本策略
 
 - 未经明确批准，不修改上述版本。
-- **Tailwind CSS 必须固定为 `3.4.19`**，严禁私自升级/降级。
 - 如确需升级版本，必须：
   - 在任务说明中写明升级原因与影响范围。
   - 同步更新 `package.json`、`pnpm-lock.yaml`、本文件和 `CLAUDE.md`。
@@ -62,9 +59,10 @@
 
 ### 4) 样式约束
 
-- 优先使用 Tailwind utility class。
-- 设计 token 放在 `src/styles/tokens.css`，全局样式在 `src/styles/index.css`。
-- 非必要不写内联样式，不引入与现有栈冲突的样式方案。
+- 统一使用 Ant Design 组件体系，不使用 Tailwind/Flowbite。
+- 新功能和重构场景中，尽可能优先使用 Ant Design 官方组件与能力，并遵循 Ant Design 最佳实践。
+- 禁止新增 `className` 与自定义 CSS 文件，样式通过 Antd 组件能力和内联 `style` 完成。
+- 视觉风格需保持一致（页面背景、边框层级、按钮和状态色）。
 
 ## 交付前检查
 

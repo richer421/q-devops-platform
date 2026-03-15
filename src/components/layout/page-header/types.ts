@@ -10,13 +10,12 @@ export type PageHeaderProps = {
   title: string;
   description?: string;
   action?: ReactNode;
-  footer?: ReactNode;
+  extension?: ReactNode;
 };
 
 export type PageHeaderTabItem<T extends string> = {
   id: T;
   label: string;
-  count?: number;
   icon?: ReactNode;
 };
 

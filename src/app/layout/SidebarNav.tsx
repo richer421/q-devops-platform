@@ -1,3 +1,4 @@
+import { ConfigProvider, Menu } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
 import { navigationItems } from './navigation';
 
@@ -7,34 +8,42 @@ type SidebarNavProps = {
 
 export function SidebarNav({ collapsed }: SidebarNavProps) {
   const location = useLocation();
+  const activeKey = navigationItems
+    .slice()
+    .reverse()
+    .find((item) => location.pathname.startsWith(item.path))?.path;
 
   return (
-    <nav className="flex-1 space-y-1 px-2 py-3">
-      {navigationItems.map((item) => {
-        const Icon = item.icon;
-        const active = location.pathname.startsWith(item.path);
-
-        return (
-          <Link
-            key={item.path}
-            to={item.path}
-            title={collapsed ? item.label : undefined}
-            data-active={active ? 'true' : 'false'}
-            className={`flex h-9 items-center gap-2.5 rounded-lg px-2 transition-all duration-150 ${
-              active
-                ? 'bg-[#E8F3FF] text-[#1664FF]'
-                : 'text-[#4E5969] hover:bg-[#F2F3F5] hover:text-[#1D2129]'
-            }`}
-          >
-            <div className="flex-shrink-0">
-              <Icon size={15} />
-            </div>
-            {!collapsed && (
-              <span style={{ fontSize: 13, fontWeight: active ? 500 : 400 }}>{item.label}</span>
-            )}
-          </Link>
-        );
-      })}
-    </nav>
+    <div style={{ padding: 8, height: 'calc(100% - 100px)' }}>
+      <ConfigProvider
+        theme={{
+          components: {
+            Menu: {
+              itemHeight: 36,
+              itemColor: '#4e5969',
+              itemBorderRadius: 8,
+              itemSelectedColor: '#1664ff',
+              itemSelectedBg: '#e8f3ff',
+              itemHoverColor: '#1664ff',
+            },
+          },
+        }}
+      >
+        <Menu
+          mode="inline"
+          inlineCollapsed={collapsed}
+          selectedKeys={activeKey ? [activeKey] : []}
+          style={{ border: 0, background: 'transparent' }}
+          items={navigationItems.map((item) => {
+            const Icon = item.icon;
+            return {
+              key: item.path,
+              icon: <Icon size={15} />,
+              label: <Link to={item.path}>{item.label}</Link>,
+            };
+          })}
+        />
+      </ConfigProvider>
+    </div>
   );
 }

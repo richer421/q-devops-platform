@@ -1,58 +1,85 @@
-import { Menu, Zap } from 'lucide-react';
+import { Button, Layout, Space, Typography } from 'antd';
+import { Menu as MenuIcon, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarNav } from './SidebarNav';
+
+const { Sider, Header, Content } = Layout;
 
 export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F2F3F5]">
-      <aside
-        className="flex flex-shrink-0 flex-col border-r border-[#E5E6EB] bg-white transition-all duration-300"
-        style={{ width: collapsed ? 64 : 220 }}
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider
+        trigger={null}
+        collapsible
+        collapsed={collapsed}
+        collapsedWidth={64}
+        width={220}
+        style={{ background: '#fff', borderRight: '1px solid #e5e6eb' }}
       >
-        <div className="flex h-14 items-center gap-3 border-b border-[#E5E6EB] px-4">
+        <Header
+          style={{
+            height: 56,
+            background: '#fff',
+            borderBottom: '1px solid #e5e6eb',
+            paddingInline: 0,
+          }}
+        >
           <div
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
-            style={{ background: 'linear-gradient(135deg, #1664FF 0%, #0094FF 100%)' }}
+            style={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              paddingInline: 16,
+            }}
           >
-            <Zap size={16} color="white" fill="white" />
-          </div>
-          {!collapsed && (
-            <div className="overflow-hidden">
-              <div
-                className="whitespace-nowrap text-[#1D2129]"
-                style={{ fontSize: 14, fontWeight: 600, lineHeight: '20px' }}
-              >
-                Q DevOps Platform
-              </div>
-              <div
-                className="whitespace-nowrap text-[#86909C]"
-                style={{ fontSize: 11, lineHeight: '16px' }}
-              >
-                应用交付平台
-              </div>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #1664ff 0%, #0094ff 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Zap size={16} color="white" fill="white" />
             </div>
-          )}
-        </div>
+            {!collapsed && (
+              <Space direction="vertical" size={0} style={{ lineHeight: 1.2 }}>
+                <Typography.Text style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>
+                  Q DevOps Platform
+                </Typography.Text>
+                <Typography.Text style={{ fontSize: 11, color: '#86909c' }}>
+                  应用交付平台
+                </Typography.Text>
+              </Space>
+            )}
+          </div>
+        </Header>
 
         <SidebarNav collapsed={collapsed} />
 
-        <div className="border-t border-[#E5E6EB]">
-          <button
-            type="button"
+        <div style={{ borderTop: '1px solid #e5e6eb' }}>
+          <Button
+            type="text"
             onClick={() => setCollapsed((value) => !value)}
-            className="flex h-11 w-full items-center justify-center text-[#86909C] transition-colors hover:bg-[#F2F3F5] hover:text-[#1D2129]"
-          >
-            <Menu size={16} />
-          </button>
+            icon={<MenuIcon size={16} />}
+            style={{ width: '100%', height: 44, borderRadius: 0, color: '#86909c' }}
+          />
         </div>
-      </aside>
+      </Sider>
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Outlet />
-      </main>
-    </div>
+      <Layout>
+        <Content style={{ background: '#f2f3f5', minWidth: 0 }}>
+          <Outlet />
+        </Content>
+      </Layout>
+    </Layout>
   );
 }

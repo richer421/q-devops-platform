@@ -1,3 +1,5 @@
+import { Breadcrumb, Button, Flex, Typography } from 'antd';
+import { ChevronRight } from 'lucide-react';
 import type { PageHeaderProps } from './types';
 
 export function PageHeader({
@@ -5,58 +7,61 @@ export function PageHeader({
   title,
   description,
   action,
-  footer,
+  extension,
 }: PageHeaderProps) {
-  return (
-    <div className="border-b border-[#E5E6EB] bg-white px-6 py-4">
-      {breadcrumbs.length > 0 && (
-        <div className="mb-2 flex items-center gap-1">
-          {breadcrumbs.map((item, index) => {
-            const isLast = index === breadcrumbs.length - 1;
-            const textClass = isLast ? 'text-[#86909C]' : 'text-[#C9CDD4]';
+  const breadcrumbItems = breadcrumbs.map((item) => ({
+    title: item.onClick ? (
+      <Button type="link" size="small" onClick={item.onClick} style={{ padding: 0, height: 'auto' }}>
+        {item.label}
+      </Button>
+    ) : (
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        {item.label}
+      </Typography.Text>
+    ),
+  }));
 
-            return (
-              <div key={`${item.label}-${index}`} className="flex items-center gap-1">
-                {item.onClick ? (
-                  <button
-                    type="button"
-                    onClick={item.onClick}
-                    className={`${textClass} transition-colors hover:text-[#1664FF]`}
-                    style={{ fontSize: 12 }}
-                  >
-                    {item.label}
-                  </button>
-                ) : (
-                  <span className={textClass} style={{ fontSize: 12 }}>
-                    {item.label}
-                  </span>
-                )}
-                {!isLast && (
-                  <span className="text-[#C9CDD4]" style={{ fontSize: 12 }}>
-                    /
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+  return (
+    <div
+      style={{
+        background: '#fff',
+        borderBottom: '1px solid #e5e6eb',
+        padding: '16px 24px 4px',
+      }}
+    >
+      {breadcrumbs.length > 0 && (
+        <Breadcrumb
+          style={{ marginBottom: 8 }}
+          separator={<ChevronRight size={11} color="#C9CDD4" />}
+          items={breadcrumbItems}
+        />
       )}
 
-      <div className="flex items-center justify-between gap-4">
+      <Flex align="center" justify="space-between" gap={16}>
         <div>
-          <h2 className="m-0 text-[#1D2129]" style={{ fontSize: 18, fontWeight: 600 }}>
+          <Typography.Title level={2} style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1D2129' }}>
             {title}
-          </h2>
+          </Typography.Title>
           {description && (
-            <p className="m-0 mt-0.5 text-[#86909C]" style={{ fontSize: 13 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 13, marginTop: 2, display: 'inline-block' }}>
               {description}
-            </p>
+            </Typography.Text>
           )}
         </div>
         {action}
-      </div>
+      </Flex>
 
-      {footer && <div className="mt-4">{footer}</div>}
+      {extension && (
+        <div
+          style={{
+            marginTop: 12,
+            borderTop: '1px solid #E5E6EB',
+            paddingTop: 12,
+          }}
+        >
+          {extension}
+        </div>
+      )}
     </div>
   );
 }

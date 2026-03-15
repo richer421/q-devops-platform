@@ -26,4 +26,14 @@ describe('business list page', () => {
       await screen.findByRole('button', { name: /新建业务单元/i }),
     ).toBeInTheDocument();
   });
+
+  it('filters business rows from the integrated search input', async () => {
+    render(<AppRouter kind="memory" initialEntries={['/business']} />);
+
+    const searchInput = await screen.findByPlaceholderText('搜索名称或描述');
+    fireEvent.change(searchInput, { target: { value: 'web-app' } });
+
+    expect(screen.getByText('web-app')).toBeInTheDocument();
+    expect(screen.queryByText('api-server')).toBeNull();
+  });
 });

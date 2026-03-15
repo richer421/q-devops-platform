@@ -14,10 +14,10 @@ describe('business detail page', () => {
   it('switches detail tabs while keeping the seeded reference data visible', async () => {
     render(<AppRouter kind="memory" initialEntries={['/business/bu-001']} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /^CI 配置/ }));
+    fireEvent.click(await screen.findByRole('tab', { name: /^CI 配置/ }));
     expect(screen.getByText('ci-api-server')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /^CD 配置/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^CD 配置/ }));
     expect(screen.getByText('cd-api-server-dev')).toBeInTheDocument();
   });
 

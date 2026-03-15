@@ -2,34 +2,46 @@ import type { Build, Instance, Release } from '../data';
 
 export function getBuildStatusMeta(status: Build['status']) {
   return {
-    success: { bg: '#E8FFEA', text: '#00B42A', label: '成功' },
-    failed: { bg: '#FFECE8', text: '#F53F3F', label: '失败' },
-    running: { bg: '#E8F3FF', text: '#1664FF', label: '构建中' },
+    success: { label: '成功', badgeClass: 'bg-[#E8FFEA] text-[#00B42A]', dotClass: 'bg-[#00B42A]' },
+    failed: { label: '失败', badgeClass: 'bg-[#FFECE8] text-[#F53F3F]', dotClass: 'bg-[#F53F3F]' },
+    running: {
+      label: '构建中',
+      badgeClass: 'bg-[#E8F3FF] text-[#1664FF]',
+      dotClass: 'animate-pulse bg-[#1664FF]',
+    },
   }[status];
 }
 
 export function getReleaseStatusMeta(status: Release['status']) {
   return {
-    success: { bg: '#E8FFEA', text: '#00B42A', label: '成功' },
-    failed: { bg: '#FFECE8', text: '#F53F3F', label: '失败' },
-    deploying: { bg: '#E8F3FF', text: '#1664FF', label: '发布中' },
-    rolled_back: { bg: '#FFF7E8', text: '#FF7D00', label: '已回滚' },
+    success: { label: '成功', badgeClass: 'bg-[#E8FFEA] text-[#00B42A]', dotClass: 'bg-[#00B42A]' },
+    failed: { label: '失败', badgeClass: 'bg-[#FFECE8] text-[#F53F3F]', dotClass: 'bg-[#F53F3F]' },
+    deploying: {
+      label: '发布中',
+      badgeClass: 'bg-[#E8F3FF] text-[#1664FF]',
+      dotClass: 'animate-pulse bg-[#1664FF]',
+    },
+    rolled_back: {
+      label: '已回滚',
+      badgeClass: 'bg-[#FFF7E8] text-[#FF7D00]',
+      dotClass: 'bg-[#FF7D00]',
+    },
   }[status];
 }
 
 export function getEnvMeta(env: string) {
   return {
-    prod: { bg: '#FFF2E8', text: '#FA8C16' },
-    dev: { bg: '#E6F7FF', text: '#1890FF' },
-    test: { bg: '#F6FFED', text: '#52C41A' },
-    gray: { bg: '#F9F0FF', text: '#722ED1' },
-  }[env] ?? { bg: '#F2F3F5', text: '#86909C' };
+    prod: { badgeClass: 'bg-[#FFF2E8] text-[#FA8C16]' },
+    dev: { badgeClass: 'bg-[#E6F7FF] text-[#1890FF]' },
+    test: { badgeClass: 'bg-[#F6FFED] text-[#52C41A]' },
+    gray: { badgeClass: 'bg-[#F9F0FF] text-[#722ED1]' },
+  }[env] ?? { badgeClass: 'bg-[#F2F3F5] text-[#86909C]' };
 }
 
 export function getInstanceStatusMeta(status: Instance['status']) {
   return {
-    running: { bg: '#E8FFEA', text: '#00B42A', label: '运行中' },
-    degraded: { bg: '#FFECE8', text: '#F53F3F', label: '异常' },
-    stopped: { bg: '#F2F3F5', text: '#86909C', label: '已停止' },
+    running: { label: '运行中', badgeClass: 'bg-[#E8FFEA] text-[#00B42A]' },
+    degraded: { label: '异常', badgeClass: 'bg-[#FFECE8] text-[#F53F3F]' },
+    stopped: { label: '已停止', badgeClass: 'bg-[#F2F3F5] text-[#86909C]' },
   }[status];
 }

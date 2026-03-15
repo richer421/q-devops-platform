@@ -13,8 +13,9 @@ describe('app router', () => {
     render(<AppRouter kind="memory" initialEntries={['/cicd']} />);
 
     const navItem = await screen.findByRole('link', { name: 'CI&CD 工作台' });
+    const navContainer = navItem.closest('.ant-menu-item');
 
-    expect(navItem).toHaveAttribute('data-active', 'true');
+    expect(navContainer).toHaveClass('ant-menu-item-selected');
     expect(screen.getByRole('heading', { name: 'CI&CD 工作台' })).toBeInTheDocument();
   });
 
