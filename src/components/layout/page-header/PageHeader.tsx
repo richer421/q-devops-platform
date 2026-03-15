@@ -8,6 +8,7 @@ export function PageHeader({
   description,
   action,
   extension,
+  extensionDivider = true,
 }: PageHeaderProps) {
   const breadcrumbItems = breadcrumbs.map((item) => ({
     title: item.onClick ? (
@@ -26,7 +27,7 @@ export function PageHeader({
       style={{
         background: '#fff',
         borderBottom: '1px solid #e5e6eb',
-        padding: '16px 24px 4px',
+        padding: '16px 16px 4px',
       }}
     >
       {breadcrumbs.length > 0 && (
@@ -54,9 +55,9 @@ export function PageHeader({
       {extension && (
         <div
           style={{
-            marginTop: 12,
-            borderTop: '1px solid #E5E6EB',
-            paddingTop: 12,
+            marginTop: extensionDivider ? 12 : 0,
+            borderTop: extensionDivider ? '1px solid #E5E6EB' : undefined,
+            paddingTop: extensionDivider ? 12 : 0,
           }}
         >
           {extension}

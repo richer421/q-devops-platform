@@ -8,11 +8,13 @@ type BusinessSummaryProps = {
 
 export function BusinessSummary({ business }: BusinessSummaryProps) {
   return (
-    <div>
+    <div style={{ paddingBlock: 4 }}>
       <Space align="start" size={12}>
-        <Avatar shape="square" size={40}>
-          {business.name[0].toUpperCase()}
-        </Avatar>
+        <div style={{ marginTop: 4 }}>
+          <Avatar shape="square" size={40}>
+            {business.name[0].toUpperCase()}
+          </Avatar>
+        </div>
         <div>
           <Space size={8} align="center">
             <Typography.Title level={4} style={{ margin: 0 }}>

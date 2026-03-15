@@ -6,8 +6,8 @@ import { ExecuteReleaseModal } from '../../components/cicd/ExecuteReleaseModal';
 import { ReleaseCard } from '../../components/cicd/ReleaseCard';
 import { TriggerBuildModal } from '../../components/cicd/TriggerBuildModal';
 import { CicdAnimationStyles } from '../../components/cicd/shared';
+import { BasePage } from '../../components/layout/page-container';
 import {
-  PageHeader,
   PageHeaderTabs,
   type PageHeaderTabItem,
 } from '../../components/layout/page-header';
@@ -29,11 +29,11 @@ export function CicdPage() {
   );
 
   return (
-    <Space direction="vertical" size={0} style={{ display: 'flex', height: '100%', background: '#F2F3F5' }}>
+    <>
       <CicdAnimationStyles />
 
-      <PageHeader
-        breadcrumbs={[{ label: 'Q DevOps Platform' }, { label: 'CI&CD 工作台' }]}
+      <BasePage
+        breadcrumbs={[{ label: 'Q DevOps' }, { label: 'CI&CD 工作台' }]}
         title="CI&CD 工作台"
         description="触发构建、执行发布并实时追踪进度"
         action={
@@ -54,10 +54,9 @@ export function CicdPage() {
             onChange={setTab}
           />
         }
-      />
-
-      <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
-        <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+        contentStyle={{ padding: '2px', overflow: 'auto' }}
+      >
+        <Space direction="vertical" size={2} style={{ display: 'flex' }}>
           {tab === 'ci' &&
             builds.map((build) => <BuildCard key={build.id} build={build} steps={buildSteps[build.id] ?? []} />)}
           {tab === 'release' &&
@@ -65,10 +64,10 @@ export function CicdPage() {
               <ReleaseCard key={release.id} release={release} stages={releaseStages[release.id] ?? []} />
             ))}
         </Space>
-      </div>
+      </BasePage>
 
       <TriggerBuildModal open={showBuild} onClose={() => setShowBuild(false)} />
       <ExecuteReleaseModal open={showRelease} onClose={() => setShowRelease(false)} />
-    </Space>
+    </>
   );
 }

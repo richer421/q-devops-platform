@@ -1,11 +1,11 @@
-import { Button, Space } from 'antd';
+import { Button } from 'antd';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BusinessDeleteModal } from '../../components/business/BusinessDeleteModal';
 import { BusinessListPanel } from '../../components/business/BusinessListPanel';
 import { BusinessModal, type BusinessFormValue } from '../../components/business/BusinessModal';
-import { PageHeader } from '../../components/layout/page-header';
+import { BasePage } from '../../components/layout/page-container';
 import { businesses, type BusinessUnit } from '../../data';
 
 const emptyBusinessForm: BusinessFormValue = {
@@ -59,13 +59,9 @@ export function BusinessListPage() {
   };
 
   return (
-    <Space
-      direction="vertical"
-      size={0}
-      style={{ display: 'flex', height: '100%', background: '#f2f3f5' }}
-    >
-      <PageHeader
-        breadcrumbs={[{ label: 'Q DevOps Platform' }, { label: '我的业务' }]}
+    <>
+      <BasePage
+        breadcrumbs={[{ label: 'Q DevOps' }, { label: '我的业务' }]}
         title="我的业务"
         description="统一管理业务的上下文信息，团队成员围绕同一业务视图展开协作"
         action={(
@@ -73,13 +69,15 @@ export function BusinessListPage() {
             新建业务单元
           </Button>
         )}
-      />
-      <BusinessListPanel
-        businesses={list}
-        onOpenDetail={(id) => navigate(`/business/${id}`)}
-        onEdit={(id) => setEditingId(id)}
-        onDelete={(id) => setDeletingId(id)}
-      />
+        contentStyle={{ padding: 0 }}
+      >
+        <BusinessListPanel
+          businesses={list}
+          onOpenDetail={(id) => navigate(`/business/${id}`)}
+          onEdit={(id) => setEditingId(id)}
+          onDelete={(id) => setDeletingId(id)}
+        />
+      </BasePage>
 
       {createOpen && (
         <BusinessModal
@@ -110,6 +108,6 @@ export function BusinessListPage() {
           onClose={() => setDeletingId(null)}
         />
       )}
-    </Space>
+    </>
   );
 }

@@ -1,4 +1,3 @@
-import { cloneElement, isValidElement, type CSSProperties } from 'react';
 import { Flex, Tabs, Typography } from 'antd';
 import type { PageHeaderTabsProps } from './types';
 
@@ -8,18 +7,6 @@ export function PageHeaderTabs<T extends string>({
   onChange,
   right,
 }: PageHeaderTabsProps<T>) {
-  const normalizeIcon = (icon: PageHeaderTabsProps<T>['items'][number]['icon']) => {
-    if (!icon || !isValidElement(icon)) {
-      return icon;
-    }
-    return cloneElement(icon, {
-      style: {
-        marginInlineEnd: 0,
-        ...((icon.props as { style?: CSSProperties }).style ?? {}),
-      },
-    });
-  };
-
   return (
     <Flex data-page-header-tabs="true" align="center" justify="space-between" gap={12}>
       <Tabs
@@ -32,7 +19,7 @@ export function PageHeaderTabs<T extends string>({
           key: item.id,
           label: (
             <Flex align="center" gap={3}>
-              {normalizeIcon(item.icon)}
+              {item.icon ? <span style={{ display: 'inline-flex' }}>{item.icon}</span> : null}
               <span>{item.label}</span>
             </Flex>
           ),

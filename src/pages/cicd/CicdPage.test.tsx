@@ -3,6 +3,30 @@ import { describe, expect, it } from 'vitest';
 import { AppRouter } from '../../app/router/routes';
 
 describe('cicd page', () => {
+  it('uses compact vertical spacing between workspace cards', async () => {
+    const { container } = render(<AppRouter kind="memory" initialEntries={['/cicd']} />);
+
+    await screen.findByText('feat: add JWT authentication middleware');
+
+    const space = container.querySelector('.ant-space');
+
+    expect(space).not.toBeNull();
+    expect(space).toHaveStyle({ rowGap: '2px' });
+  });
+
+  it('uses compact content padding around the workspace cards', async () => {
+    const { container } = render(<AppRouter kind="memory" initialEntries={['/cicd']} />);
+
+    await screen.findByText('feat: add JWT authentication middleware');
+
+    const content = container.querySelector(
+      '[data-page-content-container="true"] .ant-pro-page-container-children-container',
+    );
+
+    expect(content).not.toBeNull();
+    expect(content).toHaveStyle({ padding: '2px' });
+  });
+
   it('renders seeded build records', async () => {
     render(<AppRouter kind="memory" initialEntries={['/cicd']} />);
 

@@ -11,6 +11,7 @@ export type PageHeaderProps = {
   description?: string;
   action?: ReactNode;
   extension?: ReactNode;
+  extensionDivider?: boolean;
 };
 
 export type PageHeaderTabItem<T extends string> = {

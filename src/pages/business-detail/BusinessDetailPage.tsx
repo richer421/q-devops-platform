@@ -1,11 +1,11 @@
-import { Button, Empty, Space } from 'antd';
-import { ArrowLeft } from 'lucide-react';
+import { Empty, Space } from 'antd';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BusinessSummary } from '../../components/business/BusinessSummary';
-import { ConfigTables } from '../../components/business/ConfigTables';
+import { CDConfigsTable, CIConfigsTable, InstancesTable } from '../../components/business/ConfigTables';
 import { DeployPlansTable } from '../../components/business/DeployPlansTable';
-import { PageHeader, PageHeaderTabs, type PageHeaderTabItem } from '../../components/layout/page-header';
+import { BasePage } from '../../components/layout/page-container';
+import { PageHeaderTabs, type PageHeaderTabItem } from '../../components/layout/page-header';
 import { businesses, cdConfigs, ciConfigs, deployPlans, instances } from '../../data';
 
 type DetailTab = 'plans' | 'ci' | 'cd' | 'instances';
@@ -19,29 +19,19 @@ export function BusinessDetailPage() {
 
   if (!business) {
     return (
-      <Space
-        direction="vertical"
-        size={0}
-        style={{ display: 'flex', height: '100%', background: '#f2f3f5' }}
+      <BasePage
+        breadcrumbs={[
+          { label: 'Q DevOps' },
+          { label: '我的业务', onClick: () => navigate('/business') },
+          { label: '业务详情' },
+        ]}
+        title="业务详情"
+        description="未找到该业务单元，请检查链接后重试"
       >
-        <PageHeader
-          breadcrumbs={[
-            { label: 'Q DevOps Platform' },
-            { label: '我的业务', onClick: () => navigate('/business') },
-            { label: '业务详情' },
-          ]}
-          title="业务详情"
-          description="未找到该业务单元，请检查链接后重试"
-          action={(
-            <Button onClick={() => navigate('/business')} icon={<ArrowLeft size={14} />}>
-              返回我的业务
-            </Button>
-          )}
-        />
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Empty description="未找到该业务单元" />
         </div>
-      </Space>
+      </BasePage>
     );
   }
 
@@ -57,37 +47,27 @@ export function BusinessDetailPage() {
   ];
 
   return (
-    <Space
-      direction="vertical"
-      size={0}
-      style={{ display: 'flex', height: '100%', background: '#f2f3f5' }}
+    <BasePage
+      breadcrumbs={[
+        { label: 'Q DevOps' },
+        { label: '我的业务', onClick: () => navigate('/business') },
+        { label: business.name },
+      ]}
+      title="业务详情"
+      description="查看业务单元的部署计划、CI/CD 配置与实例状态"
+      extensionDivider={false}
+      extension={(
+        <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+          <BusinessSummary business={business} />
+          <PageHeaderTabs items={tabItems} value={activeTab} onChange={setActiveTab} />
+        </Space>
+      )}
+      contentStyle={{ padding: 0 }}
     >
-      <PageHeader
-        breadcrumbs={[
-          { label: 'Q DevOps Platform' },
-          { label: '我的业务', onClick: () => navigate('/business') },
-          { label: business.name },
-        ]}
-        title="业务详情"
-        description="查看业务单元的部署计划、CI/CD 配置与实例状态"
-        action={(
-          <Button onClick={() => navigate('/business')} icon={<ArrowLeft size={14} />}>
-            返回我的业务
-          </Button>
-        )}
-        extension={(
-          <Space direction="vertical" size={12} style={{ display: 'flex' }}>
-            <BusinessSummary business={business} />
-            <PageHeaderTabs items={tabItems} value={activeTab} onChange={setActiveTab} />
-          </Space>
-        )}
-      />
-      <div style={{ paddingInline: 24, paddingBottom: 16, paddingTop: 16 }}>
-        {activeTab === 'plans' && <DeployPlansTable plans={businessPlans} />}
-        {activeTab === 'ci' && <ConfigTables ciConfigs={businessCiConfigs} cdConfigs={[]} instances={[]} />}
-        {activeTab === 'cd' && <ConfigTables ciConfigs={[]} cdConfigs={businessCdConfigs} instances={[]} />}
-        {activeTab === 'instances' && <ConfigTables ciConfigs={[]} cdConfigs={[]} instances={businessInstances} />}
-      </div>
-    </Space>
+      {activeTab === 'plans' && <DeployPlansTable plans={businessPlans} />}
+      {activeTab === 'ci' && <CIConfigsTable configs={businessCiConfigs} />}
+      {activeTab === 'cd' && <CDConfigsTable configs={businessCdConfigs} />}
+      {activeTab === 'instances' && <InstancesTable instances={businessInstances} />}
+    </BasePage>
   );
 }
