@@ -1,19 +1,20 @@
 import { Empty, Space } from 'antd';
 import { useMemo, useState } from 'react';
+import { BusinessInstancesPanel } from '../../components/business/BusinessInstancesPanel';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BusinessSummary } from '../../components/business/BusinessSummary';
-import { CDConfigsTable, CIConfigsTable, InstancesTable } from '../../components/business/ConfigTables';
+import { CDConfigsTable, CIConfigsTable } from '../../components/business/ConfigTables';
 import { DeployPlansTable } from '../../components/business/DeployPlansTable';
 import { BasePage } from '../../components/layout/page-container';
 import { PageHeaderTabs, type PageHeaderTabItem } from '../../components/layout/page-header';
-import { businesses, cdConfigs, ciConfigs, deployPlans, instances } from '../../data';
+import { businessInstanceConfigs, businesses, cdConfigs, ciConfigs, deployPlans } from '../../mock';
 
 type DetailTab = 'plans' | 'ci' | 'cd' | 'instances';
 
 export function BusinessDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<DetailTab>('plans');
+  const [activeTab, setActiveTab] = useState<DetailTab>('instances');
 
   const business = useMemo(() => businesses.find((item) => item.id === id), [id]);
 
@@ -38,12 +39,12 @@ export function BusinessDetailPage() {
   const businessPlans = deployPlans.filter((item) => item.buId === business.id);
   const businessCiConfigs = ciConfigs.filter((item) => item.buId === business.id);
   const businessCdConfigs = cdConfigs.filter((item) => item.buId === business.id);
-  const businessInstances = instances.filter((item) => item.buId === business.id);
+  const businessInstances = businessInstanceConfigs.filter((item) => item.buId === business.id);
   const tabItems: ReadonlyArray<PageHeaderTabItem<DetailTab>> = [
+    { id: 'instances', label: '业务实例' },
     { id: 'plans', label: '部署计划' },
     { id: 'ci', label: 'CI 配置' },
     { id: 'cd', label: 'CD 配置' },
-    { id: 'instances', label: '实例' },
   ];
 
   return (
@@ -62,10 +63,10 @@ export function BusinessDetailPage() {
       )}
       contentStyle={{ padding: 0 }}
     >
+      {activeTab === 'instances' && <BusinessInstancesPanel instances={businessInstances} />}
       {activeTab === 'plans' && <DeployPlansTable plans={businessPlans} />}
       {activeTab === 'ci' && <CIConfigsTable configs={businessCiConfigs} />}
       {activeTab === 'cd' && <CDConfigsTable configs={businessCdConfigs} />}
-      {activeTab === 'instances' && <InstancesTable instances={businessInstances} />}
     </BasePage>
   );
 }

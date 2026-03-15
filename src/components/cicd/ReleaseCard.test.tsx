@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { releaseStages, releases } from '../../data';
+import { releaseStages, releases } from '../../mock';
 import { ReleaseCard } from './ReleaseCard';
 
 describe('release card', () => {

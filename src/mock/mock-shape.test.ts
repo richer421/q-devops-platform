@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { builds, businesses, releases } from './index';
 
-describe('platform data', () => {
+describe('platform mock data', () => {
   it('contains at least three seeded business units', () => {
     expect(businesses).toHaveLength(3);
   });

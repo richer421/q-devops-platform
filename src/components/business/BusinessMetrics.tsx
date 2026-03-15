@@ -1,5 +1,5 @@
 import { Col, Row, Statistic } from 'antd';
-import { businesses, cdConfigs, ciConfigs, deployPlans, instances } from '../../data';
+import { businesses, cdConfigs, ciConfigs, deployPlans, instances } from '../../mock';
 
 const metricItems = [
   { label: '业务单元', value: businesses.length },

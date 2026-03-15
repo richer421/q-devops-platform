@@ -2,7 +2,7 @@ import { Empty, Input, Table, Tag, Typography } from 'antd';
 import type { GetProp, TableProps } from 'antd';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { DeployPlan } from '../../data';
+import type { DeployPlan } from '../../mock';
 import { getReleaseStatusMeta } from '../../lib/status';
 import { EnvTag } from '../common/EnvTag';
 

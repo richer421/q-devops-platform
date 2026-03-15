@@ -1,4 +1,4 @@
-import type { BusinessUnit } from '../../data';
+import type { BusinessUnit } from '../../mock';
 import { BusinessTable } from './BusinessTable';
 
 type BusinessListPanelProps = {

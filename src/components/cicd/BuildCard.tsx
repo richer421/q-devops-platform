@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Tag } from 'antd';
 import { Package } from 'lucide-react';
-import type { Build, BuildStep } from '../../data';
+import type { Build, BuildStep } from '../../mock';
 import { CicdEntryCard } from './CicdEntryCard';
 import { CicdStepContainer } from './CicdStepContainer';
 import { Avatar, ElapsedTimer, TerminalLog } from './shared';

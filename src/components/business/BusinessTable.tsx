@@ -3,7 +3,7 @@ import { Button, Empty, Input, Space, Table, Tag, Typography } from 'antd';
 import type { GetProp, TableProps } from 'antd';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { BusinessUnit } from '../../data';
+import type { BusinessUnit } from '../../mock';
 
 type ColumnsType<T extends object = object> = TableProps<T>['columns'];
 type TablePaginationConfig = Exclude<GetProp<TableProps, 'pagination'>, boolean>;

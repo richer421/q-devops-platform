@@ -11,7 +11,7 @@ import {
   PageHeaderTabs,
   type PageHeaderTabItem,
 } from '../../components/layout/page-header';
-import { buildSteps, builds, releaseStages, releases } from '../../data';
+import { buildSteps, builds, releaseStages, releases } from '../../mock';
 
 type TabKey = 'ci' | 'release';
 

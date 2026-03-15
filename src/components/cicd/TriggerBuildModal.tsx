@@ -1,6 +1,6 @@
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { Form, Input, Modal, Select, Typography } from 'antd';
-import { businesses } from '../../data';
+import { businesses } from '../../mock';
 
 const { Text } = Typography;
 

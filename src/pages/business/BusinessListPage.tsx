@@ -6,7 +6,7 @@ import { BusinessDeleteModal } from '../../components/business/BusinessDeleteMod
 import { BusinessListPanel } from '../../components/business/BusinessListPanel';
 import { BusinessModal, type BusinessFormValue } from '../../components/business/BusinessModal';
 import { BasePage } from '../../components/layout/page-container';
-import { businesses, type BusinessUnit } from '../../data';
+import { businesses, type BusinessUnit } from '../../mock';
 
 const emptyBusinessForm: BusinessFormValue = {
   name: '',

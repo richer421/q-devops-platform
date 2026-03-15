@@ -1,6 +1,6 @@
 import { Avatar, Space, Tag, Typography } from 'antd';
 import { ExternalLink } from 'lucide-react';
-import type { BusinessUnit } from '../../data';
+import type { BusinessUnit } from '../../mock';
 
 type BusinessSummaryProps = {
   business: BusinessUnit;

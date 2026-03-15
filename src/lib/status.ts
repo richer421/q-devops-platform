@@ -1,4 +1,4 @@
-import type { Build, Instance, Release } from '../data';
+import type { Build, Instance, Release } from '../mock';
 
 export function getBuildStatusMeta(status: Build['status']) {
   return {

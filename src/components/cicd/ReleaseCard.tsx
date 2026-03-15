@@ -6,7 +6,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Tag } from 'antd';
 import { Tag as TagIcon } from 'lucide-react';
-import type { Release, ReleaseStage } from '../../data';
+import type { Release, ReleaseStage } from '../../mock';
 import { EnvTag } from '../common/EnvTag';
 import { CicdEntryCard } from './CicdEntryCard';
 import { CicdStepContainer } from './CicdStepContainer';

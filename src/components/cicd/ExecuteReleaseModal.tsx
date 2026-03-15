@@ -1,6 +1,6 @@
 import { RocketOutlined } from '@ant-design/icons';
 import { Form, Modal, Select } from 'antd';
-import { builds, businesses } from '../../data';
+import { builds, businesses } from '../../mock';
 
 type ExecuteReleaseModalProps = {
   open: boolean;

@@ -16,7 +16,8 @@ describe('business list page', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'api-server' }));
 
     expect(await screen.findByRole('heading', { name: 'api-server' })).toBeInTheDocument();
-    expect(screen.getByText('api-server-dev')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '业务实例' })).toBeInTheDocument();
+    expect(screen.getAllByText('inst-api-dev').length).toBeGreaterThan(0);
   });
 
   it('renders the primary create action from the reference layout', async () => {

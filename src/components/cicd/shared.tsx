@@ -6,7 +6,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import { useEffect, useRef, useState } from 'react';
-import type { BuildStep } from '../../data';
+import type { BuildStep } from '../../mock';
 
 export type StepStatus = BuildStep['status'];
 
