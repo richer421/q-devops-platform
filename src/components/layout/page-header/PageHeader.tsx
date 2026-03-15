@@ -22,6 +22,8 @@ export function PageHeader({
     ),
   }));
 
+  const hasHeadingRow = Boolean(title || description || action);
+
   return (
     <div
       style={{
@@ -38,19 +40,23 @@ export function PageHeader({
         />
       )}
 
-      <Flex align="center" justify="space-between" gap={16}>
-        <div>
-          <Typography.Title level={2} style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1D2129' }}>
-            {title}
-          </Typography.Title>
-          {description && (
-            <Typography.Text type="secondary" style={{ fontSize: 13, marginTop: 2, display: 'inline-block' }}>
-              {description}
-            </Typography.Text>
-          )}
-        </div>
-        {action}
-      </Flex>
+      {hasHeadingRow && (
+        <Flex align="center" justify="space-between" gap={16}>
+          <div>
+            {title && (
+              <Typography.Title level={2} style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1D2129' }}>
+                {title}
+              </Typography.Title>
+            )}
+            {description && (
+              <Typography.Text type="secondary" style={{ fontSize: 13, marginTop: 2, display: 'inline-block' }}>
+                {description}
+              </Typography.Text>
+            )}
+          </div>
+          {action}
+        </Flex>
+      )}
 
       {extension && (
         <div

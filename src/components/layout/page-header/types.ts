@@ -7,7 +7,7 @@ export type PageHeaderBreadcrumb = {
 
 export type PageHeaderProps = {
   breadcrumbs: ReadonlyArray<PageHeaderBreadcrumb>;
-  title: string;
+  title?: string;
   description?: string;
   action?: ReactNode;
   extension?: ReactNode;

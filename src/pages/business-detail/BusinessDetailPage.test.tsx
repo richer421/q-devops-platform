@@ -9,6 +9,8 @@ describe('business detail page', () => {
     expect(await screen.findByRole('heading', { name: 'api-server' })).toBeInTheDocument();
     expect(screen.getByText('核心 REST API 服务')).toBeInTheDocument();
     expect(screen.getByText('api-server-dev')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '业务详情' })).toBeNull();
+    expect(screen.queryByText('查看业务单元的部署计划、CI/CD 配置与实例状态')).toBeNull();
     expect(screen.queryByRole('button', { name: /返回我的业务/i })).toBeNull();
     expect(container.querySelector('div[style*="border-top: 1px solid rgb(229, 230, 235)"]')).toBeNull();
   });

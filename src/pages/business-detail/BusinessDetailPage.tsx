@@ -53,8 +53,6 @@ export function BusinessDetailPage() {
         { label: '我的业务', onClick: () => navigate('/business') },
         { label: business.name },
       ]}
-      title="业务详情"
-      description="查看业务单元的部署计划、CI/CD 配置与实例状态"
       extensionDivider={false}
       extension={(
         <Space direction="vertical" size={12} style={{ display: 'flex' }}>
