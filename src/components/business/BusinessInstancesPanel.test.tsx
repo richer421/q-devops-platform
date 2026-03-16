@@ -93,7 +93,7 @@ describe('business instances panel', () => {
   it('switches the active instance and opens pod yaml dialog', async () => {
     render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /配置 inst-api-prod/i }));
+    fireEvent.click(screen.getByRole('button', { name: /选择实例 inst-api-prod/i }));
     expect(screen.getAllByText('inst-api-prod')).toHaveLength(2);
     expect(screen.getByText('api-server-prod-7c68d4d6df-9x2pl')).toBeInTheDocument();
     expect(screen.getByText('api-server-prod-7c68d4d6df-q8n5r')).toBeInTheDocument();

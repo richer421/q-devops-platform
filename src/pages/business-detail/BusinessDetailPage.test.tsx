@@ -22,7 +22,7 @@ describe('business detail page', () => {
 
     expect(instanceTab.getAttribute('aria-selected')).toBe('true');
     expect(screen.getAllByText('inst-api-dev').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /配置 inst-api-dev/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /选择实例 inst-api-dev/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Pod' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '配置' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /^YAML$/ })).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('business detail page', () => {
   it('switches the active business instance from the config entry', async () => {
     render(<AppRouter kind="memory" initialEntries={['/business/bu-001']} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /配置 inst-api-prod/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /选择实例 inst-api-prod/i }));
 
     expect(screen.getAllByText('inst-api-prod').length).toBeGreaterThan(0);
     expect(screen.getByText('api-server-prod-7c68d4d6df-9x2pl')).toBeInTheDocument();

@@ -1,6 +1,6 @@
 import { Alert, Button, Card, Empty, Flex, Form, Input, InputNumber, List, Modal, Select, Table, Tag, Tabs, Typography } from 'antd';
 import type { TableProps } from 'antd';
-import { FileText, Settings2, Terminal } from 'lucide-react';
+import { FileText, Terminal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -84,6 +84,7 @@ type PodDialogState = {
 } | null;
 
 type ColumnsType<T extends object = object> = TableProps<T>['columns'];
+type PaginationRow = { key: string };
 
 type PodTableRow = {
   key: string;
@@ -1110,9 +1111,92 @@ function PodsView({
   );
 }
 
+function TableBottomPagination({
+  current,
+  pageSize,
+  total,
+  pageSizeOptions,
+  onChange,
+}: {
+  current: number;
+  pageSize: number;
+  total: number;
+  pageSizeOptions: number[];
+  onChange: (page: number, nextPageSize: number) => void;
+}) {
+  const columns = useMemo<ColumnsType<PaginationRow>>(
+    () => [
+      {
+        key: 'placeholder',
+        dataIndex: 'key',
+        render: () => null,
+      },
+    ],
+    [],
+  );
+
+  return (
+    <div data-bottom-pagination="true" style={{ marginTop: 'auto' }}>
+      <Table<PaginationRow>
+        rowKey="key"
+        columns={columns}
+        dataSource={[{ key: 'pagination-only' }]}
+        showHeader={false}
+        pagination={{
+          current,
+          pageSize,
+          total,
+          size: 'small',
+          showSizeChanger: true,
+          pageSizeOptions,
+          position: ['bottomCenter'],
+          onChange,
+        }}
+        locale={{ emptyText: null }}
+      />
+      <style>
+        {`
+          [data-bottom-pagination='true'] .ant-table {
+            display: none;
+          }
+
+          [data-bottom-pagination='true'] .ant-table-wrapper,
+          [data-bottom-pagination='true'] .ant-spin-nested-loading,
+          [data-bottom-pagination='true'] .ant-spin-container {
+            display: flex;
+            flex-direction: column;
+          }
+
+          [data-bottom-pagination='true'] .ant-table-pagination.ant-pagination {
+            margin-block-start: auto;
+          }
+
+          [data-bottom-pagination='true'] .ant-pagination-item,
+          [data-bottom-pagination='true'] .ant-pagination-prev,
+          [data-bottom-pagination='true'] .ant-pagination-next {
+            min-width: 24px;
+            height: 24px;
+            line-height: 22px;
+          }
+
+          [data-bottom-pagination='true'] .ant-pagination-prev .ant-pagination-item-link,
+          [data-bottom-pagination='true'] .ant-pagination-next .ant-pagination-item-link {
+            width: 24px;
+            height: 24px;
+            line-height: 22px;
+          }
+        `}
+      </style>
+    </div>
+  );
+}
+
 export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProps) {
+  const paginationOptions = [10, 25, 50, 100];
   const [activeId, setActiveId] = useState(instances[0]?.id);
   const [detailTab, setDetailTab] = useState<DetailTab>('pods');
+  const [instancePagination, setInstancePagination] = useState({ current: 1, pageSize: 10 });
+  const [podPagination, setPodPagination] = useState({ current: 1, pageSize: 10 });
   const [savedDrafts, setSavedDrafts] = useState<Record<string, InstanceDraft>>(() =>
     Object.fromEntries(instances.map((item) => [item.id, buildDraft(item)])),
   );
@@ -1127,6 +1211,23 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
   );
 
   const activeSavedDraft = activeInstance ? savedDrafts[activeInstance.id] : undefined;
+  const pagedInstances = useMemo(
+    () =>
+      instances.slice(
+        (instancePagination.current - 1) * instancePagination.pageSize,
+        instancePagination.current * instancePagination.pageSize,
+      ),
+    [instancePagination, instances],
+  );
+  const allPods = useMemo(() => activeInstance?.pods ?? [], [activeInstance]);
+  const pagedPods = useMemo(
+    () =>
+      allPods.slice(
+        (podPagination.current - 1) * podPagination.pageSize,
+        podPagination.current * podPagination.pageSize,
+      ),
+    [allPods, podPagination],
+  );
   const containerLimitLookup = useMemo(
     () =>
       (activeInstance?.spec?.deployment?.template?.spec?.containers ?? []).reduce<Record<string, { cpuLimit?: string; memoryLimit?: string }>>((accumulator, container) => {
@@ -1253,6 +1354,7 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
     setActiveId(instanceId);
     setEditingId(null);
     setDetailTab('pods');
+    setPodPagination((current) => ({ ...current, current: 1 }));
   };
 
   const canEdit = detailTab === 'config' || detailTab === 'yaml';
@@ -1265,92 +1367,98 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
           minHeight: 0,
           display: 'grid',
           gridTemplateColumns: '320px minmax(0, 1fr)',
-          gap: 16,
-          padding: 12,
+          gap: 2,
+          padding: 2,
           background: '#F2F3F5',
           boxSizing: 'border-box',
         }}
       >
-        <Card title="业务实例" styles={{ body: { padding: 0 } }} style={{ minHeight: 0, overflow: 'hidden' }}>
-          <List
-            dataSource={[...instances]}
-            renderItem={(instance) => {
-              const statusMeta = getInstanceStatusMeta(instance.status);
-              const selected = activeInstance.id === instance.id;
+        <Card
+          title="业务实例"
+          styles={{
+            header: { paddingInline: 16 },
+            body: { padding: 8, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' },
+          }}
+          style={{ minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        >
+          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            <List
+              dataSource={[...pagedInstances]}
+              renderItem={(instance) => {
+                const statusMeta = getInstanceStatusMeta(instance.status);
+                const selected = activeInstance.id === instance.id;
 
-              return (
-                <List.Item style={{ padding: 0, border: 'none' }}>
-                  <div
-                    role="button"
-                    aria-label={`选择实例 ${instance.name}`}
-                    tabIndex={0}
-                    onClick={() => handleSwitchInstance(instance.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        handleSwitchInstance(instance.id);
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      textAlign: 'left',
-                      border: 'none',
-                      background: selected ? '#F7FAFF' : '#fff',
-                      padding: 16,
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #F2F3F5',
-                    }}
-                  >
-                    <Flex align="center" justify="space-between" gap={12}>
-                      <div style={{ minWidth: 0 }}>
-                        <Flex align="center" gap={8} wrap>
-                          <Typography.Text strong>{instance.name}</Typography.Text>
-                          <EnvTag env={instance.env} />
-                          <Tag style={{ margin: 0, border: 'none', borderRadius: 999, background: '#F2F3F5', color: '#4E5969' }}>
-                            {instance.type}
-                          </Tag>
-                        </Flex>
-                        <Flex align="center" gap={8} wrap style={{ marginTop: 8 }}>
-                          <Tag
-                            style={{
-                              margin: 0,
-                              border: 'none',
-                              borderRadius: 999,
-                              background: statusMeta.badgeClass.includes('#') ? '#E8FFEA' : undefined,
-                            }}
-                            color={instance.status === 'running' ? 'success' : instance.status === 'degraded' ? 'warning' : 'default'}
-                          >
-                            {statusMeta.label}
-                          </Tag>
-                          <Typography.Text type="secondary">
-                            {instance.readyReplicas}/{instance.replicas} Ready
-                          </Typography.Text>
-                        </Flex>
-                      </div>
-                      <Button
-                        size="small"
-                        icon={<Settings2 size={14} />}
-                        onClick={(event) => {
-                          event.stopPropagation();
+                return (
+                  <List.Item style={{ padding: 0, border: 'none' }}>
+                    <div
+                      role="button"
+                      aria-label={`选择实例 ${instance.name}`}
+                      tabIndex={0}
+                      onClick={() => handleSwitchInstance(instance.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
                           handleSwitchInstance(instance.id);
-                        }}
-                      >
-                        配置 {instance.name}
-                      </Button>
-                    </Flex>
-                  </div>
-                </List.Item>
-              );
-            }}
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        border: 'none',
+                        background: selected ? '#F7FAFF' : '#fff',
+                        padding: 16,
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #F2F3F5',
+                      }}
+                    >
+                      <Flex align="center" justify="space-between" gap={12}>
+                        <div style={{ minWidth: 0 }}>
+                          <Typography.Text strong ellipsis style={{ display: 'block' }}>
+                            {instance.name}
+                          </Typography.Text>
+                          <Flex align="center" gap={8} wrap={false} style={{ marginTop: 8 }}>
+                            <EnvTag env={instance.env} />
+                            <Tag style={{ margin: 0, border: 'none', borderRadius: 999, background: '#F2F3F5', color: '#4E5969' }}>
+                              {instance.type}
+                            </Tag>
+                            <Tag
+                              style={{
+                                margin: 0,
+                                border: 'none',
+                                borderRadius: 999,
+                                background: statusMeta.badgeClass.includes('#') ? '#E8FFEA' : undefined,
+                              }}
+                              color={instance.status === 'running' ? 'success' : instance.status === 'degraded' ? 'warning' : 'default'}
+                            >
+                              {statusMeta.label}
+                            </Tag>
+                          </Flex>
+                        </div>
+                      </Flex>
+                    </div>
+                  </List.Item>
+                );
+              }}
+            />
+          </div>
+          <TableBottomPagination
+            current={instancePagination.current}
+            pageSize={instancePagination.pageSize}
+            total={instances.length}
+            pageSizeOptions={paginationOptions}
+            onChange={(page, pageSize) => setInstancePagination({ current: page, pageSize })}
           />
         </Card>
 
         <Card
-          title={activeDraft.name}
+          title={
+            <Flex align="center" gap={8}>
+              <Typography.Text strong>{activeDraft.name}</Typography.Text>
+              <EnvTag env={activeDraft.env} />
+            </Flex>
+          }
           extra={
             <Flex align="center" gap={8}>
-              <EnvTag env={activeDraft.env} />
-              <Typography.Text type="secondary">{activeDraft.instanceType}</Typography.Text>
               {canEdit ? (
                 isEditing ? (
                   <>
@@ -1369,28 +1477,39 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
               ) : null}
             </Flex>
           }
-          styles={{ body: { padding: 16 } }}
-          style={{ minHeight: 0, overflow: 'auto' }}
+          styles={{ body: { padding: 8, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' } }}
+          style={{ minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          <Tabs
-            activeKey={detailTab}
-            onChange={(next) => setDetailTab(next as DetailTab)}
-            items={[
-              { key: 'pods', label: 'Pod' },
-              { key: 'config', label: '配置' },
-              { key: 'yaml', label: 'YAML' },
-            ]}
-          />
+          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            <Tabs
+              activeKey={detailTab}
+              onChange={(next) => setDetailTab(next as DetailTab)}
+              items={[
+                { key: 'pods', label: 'Pod' },
+                { key: 'config', label: '配置' },
+                { key: 'yaml', label: 'YAML' },
+              ]}
+            />
 
+            {detailTab === 'pods' ? (
+              <PodsView
+                pods={pagedPods}
+                containerLimitLookup={containerLimitLookup}
+                onOpenDialog={(kind, title, content) => setPodDialog({ kind, title, content })}
+              />
+            ) : null}
+            {detailTab === 'config' ? (isEditing ? <EditConfig draft={activeDraft} onPatch={patchEditDraft} /> : <PreviewConfig draft={activeDraft} />) : null}
+            {detailTab === 'yaml' ? (isEditing ? <EditYaml value={activeDraft.yaml} error={yamlErrors[activeInstance.id]} onChange={updateYaml} /> : <PreviewYaml value={activeDraft.yaml} />) : null}
+          </div>
           {detailTab === 'pods' ? (
-            <PodsView
-              pods={activeInstance.pods ?? []}
-              containerLimitLookup={containerLimitLookup}
-              onOpenDialog={(kind, title, content) => setPodDialog({ kind, title, content })}
+            <TableBottomPagination
+              current={podPagination.current}
+              pageSize={podPagination.pageSize}
+              total={allPods.length}
+              pageSizeOptions={paginationOptions}
+              onChange={(page, pageSize) => setPodPagination({ current: page, pageSize })}
             />
           ) : null}
-          {detailTab === 'config' ? (isEditing ? <EditConfig draft={activeDraft} onPatch={patchEditDraft} /> : <PreviewConfig draft={activeDraft} />) : null}
-          {detailTab === 'yaml' ? (isEditing ? <EditYaml value={activeDraft.yaml} error={yamlErrors[activeInstance.id]} onChange={updateYaml} /> : <PreviewYaml value={activeDraft.yaml} />) : null}
         </Card>
       </div>
 

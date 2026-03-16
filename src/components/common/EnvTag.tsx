@@ -10,14 +10,14 @@ type EnvTagMeta = {
 };
 
 const ENV_TAG_META: Record<Environment, EnvTagMeta> = {
-  dev: { label: 'DEV', bg: '#E6F7FF', text: '#1890FF', border: '#BAE7FF' },
-  test: { label: 'TEST', bg: '#F6FFED', text: '#52C41A', border: '#B7EB8F' },
-  gray: { label: 'GRAY', bg: '#F9F0FF', text: '#722ED1', border: '#D3ADF7' },
-  prod: { label: 'PROD', bg: '#FFF2E8', text: '#FA8C16', border: '#FFD8BF' },
+  dev: { label: '开发', bg: '#F6FFED', text: '#389E0D', border: '#B7EB8F' },
+  test: { label: '测试', bg: '#E6F7FF', text: '#1677FF', border: '#91CAFF' },
+  gray: { label: '灰度', bg: '#F2F3F5', text: '#4E5969', border: '#D9DDE3' },
+  prod: { label: '生产', bg: '#FFF1F0', text: '#CF1322', border: '#FFA39E' },
 };
 
 const DEFAULT_ENV_TAG_META: EnvTagMeta = {
-  label: 'UNKNOWN',
+  label: '未知',
   bg: '#F2F3F5',
   text: '#86909C',
   border: '#E5E6EB',
@@ -42,7 +42,7 @@ export function EnvTag({ env }: EnvTagProps) {
     <Tag
       style={{
         marginInlineEnd: 0,
-        borderRadius: 12,
+        borderRadius: '8px',
         fontSize: 11,
         fontWeight: 600,
         lineHeight: '16px',
