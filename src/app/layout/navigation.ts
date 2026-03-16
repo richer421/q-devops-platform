@@ -9,5 +9,5 @@ export type NavigationItem = {
 
 export const navigationItems: NavigationItem[] = [
   { label: '我的业务', path: '/business', icon: Box },
-  { label: 'CI&CD 工作台', path: '/cicd', icon: Zap },
+  { label: '业务交付', path: '/cicd', icon: Zap },
 ];

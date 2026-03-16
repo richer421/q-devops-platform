@@ -1,19 +1,22 @@
-import { Alert, Button, Card, Empty, Flex, Form, Input, InputNumber, List, Modal, Select, Table, Tag, Tabs, Typography } from 'antd';
+import { DeleteOutlined, PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Button, Card, Collapse, Empty, Flex, Form, Input, InputNumber, List, Modal, Select, Table, Tag, Tooltip, Typography } from 'antd';
 import type { TableProps } from 'antd';
 import { FileText, Terminal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { parse, stringify } from 'yaml';
+import { stringify } from 'yaml';
 import type { Instance, InstancePod } from '../../mock';
 import { getInstanceStatusMeta } from '../../lib/status';
 import { EnvTag } from '../common/EnvTag';
+import { PageHeaderTabs, type PageHeaderTabItem } from '../layout/page-header';
 
 type BusinessInstancesPanelProps = {
   instances: ReadonlyArray<Instance>;
 };
 
-type DetailTab = 'pods' | 'config' | 'yaml';
+type DetailTab = 'pods' | 'config';
+type ConfigView = 'visual' | 'yaml';
 
 type InstanceDraft = {
   id: string;
@@ -28,6 +31,7 @@ type InstanceDraft = {
   memory: string;
   cpuLimit: string;
   memoryLimit: string;
+  startupCommand: string;
   status: Instance['status'];
   containerName: string;
   image: string;
@@ -37,42 +41,6 @@ type InstanceDraft = {
   secrets: string[];
   services: string[];
   yaml: string;
-};
-
-type ParsedYamlDocument = {
-  name?: string;
-  env?: string;
-  instance_type?: InstanceDraft['instanceType'];
-  spec?: {
-    deployment?: {
-      replicas?: number;
-      template?: {
-        spec?: {
-          containers?: Array<{
-            name?: string;
-            image?: string;
-            ports?: Array<{ containerPort?: number }>;
-            env?: Array<{ name?: string; value?: string }>;
-            resources?: {
-              requests?: {
-                cpu?: string;
-                memory?: string;
-              };
-              limits?: {
-                cpu?: string;
-                memory?: string;
-              };
-            };
-          }>;
-        };
-      };
-    };
-  };
-  attach_resources?: {
-    configMaps?: Record<string, unknown>;
-    secrets?: Record<string, unknown>;
-    services?: Record<string, unknown>;
-  };
 };
 
 type PodDialogKind = 'events' | 'logs' | 'terminal' | 'yaml';
@@ -105,19 +73,40 @@ type ContainerListRow = {
   commit?: string;
 };
 
-const instanceTypeOptions = [
-  { label: 'deployment', value: 'deployment' },
-  { label: 'statefulset', value: 'statefulset' },
-  { label: 'job', value: 'job' },
-  { label: 'cronjob', value: 'cronjob' },
-  { label: 'pod', value: 'pod' },
+const formGroupStyle = {
+  border: '1px solid #E5E6EB',
+  borderRadius: 8,
+  background: '#FAFAFA',
+  padding: 12,
+} satisfies React.CSSProperties;
+
+const formGroupTitleStyle = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: '#4E5969',
+  marginBottom: 10,
+  display: 'block',
+} satisfies React.CSSProperties;
+
+const reservedLayerStyle = {
+  border: '1px dashed #D9DDE3',
+  borderRadius: 8,
+  background: '#FAFAFA',
+  padding: 14,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+} satisfies React.CSSProperties;
+
+const memoryUnitOptions = [
+  { label: 'Mi', value: 'Mi' },
+  { label: 'Gi', value: 'Gi' },
 ] as const;
 
-const sectionGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: 16,
-} satisfies React.CSSProperties;
+const cpuUnitOptions = [
+  { label: 'm', value: 'm' },
+  { label: 'c', value: 'c' },
+] as const;
 
 const defaultContainerLimitLookup: Record<string, { cpuLimit: string; memoryLimit: string }> = {
   'api-server': { cpuLimit: '1000m', memoryLimit: '1Gi' },
@@ -148,6 +137,10 @@ const containerDetailGrid = {
   total: 822,
 } as const;
 
+function normalizeYamlImagePlaceholder(yaml: string) {
+  return yaml.replace(/^(\s*image:\s*).+$/gm, '$1IMAGE');
+}
+
 function toResourceNames(values?: Record<string, unknown>) {
   return Object.keys(values ?? {});
 }
@@ -177,7 +170,8 @@ function createNameMap(names: string[]) {
 }
 
 function serializeDraft(draft: InstanceDraft) {
-  return stringify(
+  return normalizeYamlImagePlaceholder(
+    stringify(
     {
       name: draft.name,
       env: draft.env,
@@ -190,7 +184,8 @@ function serializeDraft(draft: InstanceDraft) {
               containers: [
                 {
                   name: draft.containerName,
-                  image: draft.image,
+                  image: 'IMAGE',
+                  command: draft.startupCommand.trim() ? ['/bin/sh', '-c', draft.startupCommand.trim()] : undefined,
                   ports: draft.ports.map((containerPort) => ({ containerPort })),
                   env: draft.envVars,
                   resources: {
@@ -216,7 +211,8 @@ function serializeDraft(draft: InstanceDraft) {
       },
     },
     { lineWidth: 0 },
-  ).trim();
+    ).trim(),
+  );
 }
 
 function buildDraft(instance: Instance): InstanceDraft {
@@ -237,6 +233,10 @@ function buildDraft(instance: Instance): InstanceDraft {
     memory: resources?.requests?.memory ?? instance.memory,
     cpuLimit: resources?.limits?.cpu ?? '',
     memoryLimit: resources?.limits?.memory ?? '',
+    startupCommand: parseStartupCommand(
+      (container as { command?: string | string[] } | undefined)?.command,
+      (container as { args?: string | string[] } | undefined)?.args,
+    ),
     status: instance.status,
     containerName: container?.name ?? instance.name,
     image: container?.image ?? '',
@@ -252,33 +252,8 @@ function buildDraft(instance: Instance): InstanceDraft {
 
   return {
     ...draft,
-    yaml: instance.yaml?.trim() || serializeDraft(draft),
+    yaml: normalizeYamlImagePlaceholder(instance.yaml?.trim() || serializeDraft(draft)),
   };
-}
-
-function parseLineValues(value: string) {
-  return value
-    .split('\n')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function stringifyLineValues(values: string[]) {
-  return values.join('\n');
-}
-
-function stringifyEnvVars(values: InstanceDraft['envVars']) {
-  return values.map((item) => `${item.name}=${item.value}`).join('\n');
-}
-
-function parseEnvVars(value: string) {
-  return parseLineValues(value).map((line) => {
-    const [name, ...rest] = line.split('=');
-    return {
-      name: name?.trim() ?? '',
-      value: rest.join('=').trim(),
-    };
-  });
 }
 
 function stringifyPorts(ports: number[]) {
@@ -292,287 +267,467 @@ function parsePorts(value: string) {
     .filter((item): item is number => Number.isFinite(item));
 }
 
-function parseDraftYaml(yaml: string, fallback: InstanceDraft): InstanceDraft {
-  const document = parse(yaml) as ParsedYamlDocument | null;
-  const deployment = document?.spec?.deployment;
-  const container = deployment?.template?.spec?.containers?.[0];
-  const resources = container?.resources;
-  const attachResources = document?.attach_resources;
+function parseNumeric(value: string) {
+  const match = value.trim().match(/(\d+(\.\d+)?)/);
+  if (!match) {
+    return undefined;
+  }
 
-  const nextDraft: InstanceDraft = {
-    ...fallback,
-    name: document?.name ?? fallback.name,
-    env: document?.env ?? fallback.env,
-    instanceType: document?.instance_type ?? fallback.instanceType,
-    replicas: Number(deployment?.replicas ?? fallback.replicas),
-    cpu: resources?.requests?.cpu ?? fallback.cpu,
-    memory: resources?.requests?.memory ?? fallback.memory,
-    cpuLimit: resources?.limits?.cpu ?? fallback.cpuLimit,
-    memoryLimit: resources?.limits?.memory ?? fallback.memoryLimit,
-    containerName: container?.name ?? fallback.containerName,
-    image: container?.image ?? fallback.image,
-    ports: (container?.ports ?? [])
-      .map((port: { containerPort?: number }) => Number(port?.containerPort))
-      .filter((port: number): port is number => Number.isFinite(port)),
-    envVars: Array.isArray(container?.env)
-      ? container.env.map((item: { name?: string; value?: string }) => ({
-          name: item?.name ?? '',
-          value: item?.value ?? '',
-        }))
-      : fallback.envVars,
-    configMaps: toResourceNames(attachResources?.configMaps),
-    secrets: toResourceNames(attachResources?.secrets),
-    services: toResourceNames(attachResources?.services),
-    yaml: yaml.trim(),
-  };
-
-  return {
-    ...nextDraft,
-    replicas: Number.isFinite(nextDraft.replicas) ? nextDraft.replicas : fallback.replicas,
-  };
+  const next = Number(match[1]);
+  return Number.isFinite(next) ? next : undefined;
 }
 
-function ReadonlyField({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <Typography.Text type="secondary">{label}</Typography.Text>
-      <div style={{ marginTop: 4, fontSize: 14, fontWeight: 600, color: '#1D2129' }}>{value}</div>
-    </div>
-  );
+function normalizeCommandParts(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
+  return [];
 }
 
-function ResourceTagGroup({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div
-      style={{
-        border: '1px solid #E5E6EB',
-        borderRadius: 12,
-        padding: 16,
-        background: '#FAFAFA',
-      }}
-    >
-      <Typography.Text style={{ fontSize: 12, color: '#86909C' }}>{title}</Typography.Text>
-      <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {items.length > 0 ? (
-          items.map((name) => (
-            <Tag key={name} style={{ margin: 0, borderRadius: 999, paddingInline: 10, paddingBlock: 4 }}>
-              {name}
-            </Tag>
-          ))
-        ) : (
-          <Typography.Text type="secondary">暂无</Typography.Text>
-        )}
-      </div>
-    </div>
-  );
+function parseStartupCommand(command: unknown, args: unknown) {
+  const commandParts = normalizeCommandParts(command);
+  const argParts = normalizeCommandParts(args);
+
+  if (commandParts.length === 0 && argParts.length === 0) {
+    return '';
+  }
+
+  const shellExecutors = new Set(['/bin/sh', 'sh', '/bin/bash', 'bash']);
+  if (commandParts.length >= 3 && shellExecutors.has(commandParts[0]) && commandParts[1] === '-c') {
+    return commandParts.slice(2).join(' ');
+  }
+
+  return [...commandParts, ...argParts].join(' ');
+}
+
+function parseMemoryValue(value: string): { amount: number | undefined; unit: 'Mi' | 'Gi' } {
+  const trimmed = value.trim();
+  const amount = parseNumeric(trimmed);
+
+  if (trimmed.endsWith('Gi')) {
+    return { amount, unit: 'Gi' };
+  }
+
+  if (trimmed.endsWith('Mi')) {
+    return { amount, unit: 'Mi' };
+  }
+
+  return { amount, unit: 'Mi' };
+}
+
+function parseCpuValue(value: string): { amount: number | undefined; unit: 'm' | 'c' } {
+  const trimmed = value.trim();
+  const amount = parseNumeric(trimmed);
+
+  if (trimmed.endsWith('c')) {
+    return { amount, unit: 'c' };
+  }
+
+  if (trimmed.endsWith('m')) {
+    return { amount, unit: 'm' };
+  }
+
+  return { amount, unit: 'm' };
 }
 
 function PreviewConfig({ draft }: { draft: InstanceDraft }) {
+  return <EditConfig draft={draft} readOnly />;
+}
+
+function BaseConfigLayer({
+  draft,
+  readOnly,
+  patchDraft,
+}: {
+  draft: InstanceDraft;
+  readOnly: boolean;
+  patchDraft: (patch: Partial<InstanceDraft>) => void;
+}) {
+  const inlineFormStyle = {
+    labelCol: { flex: '110px' },
+    wrapperCol: { flex: 'auto' },
+    labelAlign: 'left' as const,
+    colon: false,
+    layout: 'horizontal' as const,
+  };
+
+  const renderHelpLabel = (title: string, help: string) => (
+    <Flex align="center" gap={4}>
+      <span>{title}</span>
+      <Tooltip title={help}>
+        <QuestionCircleOutlined style={{ color: '#86909C', fontSize: 12, cursor: 'help' }} />
+      </Tooltip>
+    </Flex>
+  );
+
+  const cpuRequest = parseCpuValue(draft.cpu);
+  const cpuLimit = parseCpuValue(draft.cpuLimit);
+  const memoryRequest = parseMemoryValue(draft.memory);
+  const memoryLimit = parseMemoryValue(draft.memoryLimit);
+
+  const envDataSource = draft.envVars.map((item, index) => ({
+    key: `env-${index}`,
+    index,
+    name: item.name,
+    value: item.value,
+  }));
+
+  const updateEnvVar = (index: number, patch: Partial<InstanceDraft['envVars'][number]>) => {
+    const next = draft.envVars.map((item, current) => (current === index ? { ...item, ...patch } : item));
+    patchDraft({ envVars: next });
+  };
+
+  const appendEnvVar = () => {
+    patchDraft({ envVars: [...draft.envVars, { name: '', value: '' }] });
+  };
+
+  const removeEnvVar = (index: number) => {
+    patchDraft({ envVars: draft.envVars.filter((_, current) => current !== index) });
+  };
+
+  const envColumns: ColumnsType<{ key: string; index: number; name: string; value: string }> = [
+    {
+      title: 'KEY',
+      dataIndex: 'name',
+      key: 'name',
+      render: (_value, record) => (
+        <Input
+          value={record.name}
+          placeholder="变量名"
+          disabled={readOnly}
+          onChange={(event) => updateEnvVar(record.index, { name: event.target.value })}
+        />
+      ),
+    },
+    {
+      title: 'VALUE',
+      dataIndex: 'value',
+      key: 'value',
+      render: (_value, record) => (
+        <Input
+          value={record.value}
+          placeholder="变量值"
+          disabled={readOnly}
+          onChange={(event) => updateEnvVar(record.index, { value: event.target.value })}
+        />
+      ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 68,
+      align: 'center',
+      render: (_, record) => (
+        <Button
+          size="small"
+          type="text"
+          danger={!readOnly}
+          disabled={readOnly}
+          icon={<DeleteOutlined />}
+          aria-label={`删除环境变量-${record.index}`}
+          onClick={() => removeEnvVar(record.index)}
+        />
+      ),
+    },
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Card title="Deployment 规格" styles={{ body: { padding: 16 } }}>
-        <div style={sectionGridStyle}>
-          <ReadonlyField label="实例名称" value={draft.name} />
-          <ReadonlyField label="环境" value={draft.env} />
-          <ReadonlyField label="实例类型" value={draft.instanceType} />
-          <ReadonlyField label="副本数" value={draft.replicas} />
-          <ReadonlyField label="容器名称" value={draft.containerName || '未配置'} />
-          <ReadonlyField label="容器镜像" value={draft.image || '未配置'} />
-          <ReadonlyField label="端口列表" value={draft.ports.length > 0 ? draft.ports.join(', ') : '未配置'} />
-        </div>
-      </Card>
-
-      <Card title="资源配额" styles={{ body: { padding: 16 } }}>
-        <div style={sectionGridStyle}>
-          <ReadonlyField label="CPU Requests" value={draft.cpu || '未配置'} />
-          <ReadonlyField label="Memory Requests" value={draft.memory || '未配置'} />
-          <ReadonlyField label="CPU Limits" value={draft.cpuLimit || '未配置'} />
-          <ReadonlyField label="Memory Limits" value={draft.memoryLimit || '未配置'} />
-        </div>
-      </Card>
-
-      <Card title="环境变量" styles={{ body: { padding: 16 } }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {draft.envVars.length > 0 ? (
-            draft.envVars.map((item) => (
-              <div
-                key={`${item.name}-${item.value}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  background: '#F7F8FA',
-                }}
-              >
-                <Typography.Text code>{item.name}</Typography.Text>
-                <Typography.Text>{item.value}</Typography.Text>
-              </div>
-            ))
-          ) : (
-            <Typography.Text type="secondary">暂无环境变量</Typography.Text>
-          )}
-        </div>
-      </Card>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <ResourceTagGroup title="ConfigMaps" items={draft.configMaps} />
-        <ResourceTagGroup title="Secrets" items={draft.secrets} />
-        <ResourceTagGroup title="Services" items={draft.services} />
+    <Flex vertical gap={12}>
+      <div style={formGroupStyle}>
+        <Typography.Text style={formGroupTitleStyle}>部署与启动</Typography.Text>
+        <Form {...inlineFormStyle}>
+          <Form.Item label="副本数" style={{ marginBottom: 8 }}>
+            <InputNumber
+              style={{ width: '100%' }}
+              min={0}
+              placeholder="副本数"
+              value={draft.replicas}
+              disabled={readOnly}
+              onChange={(value) => patchDraft({ replicas: value ?? 0 })}
+            />
+          </Form.Item>
+          <Form.Item label="启动命令" style={{ marginBottom: 0 }}>
+            <Input.TextArea
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              placeholder="例如: java -Xms512m -Xmx1024m -jar app.jar"
+              disabled={readOnly}
+              value={draft.startupCommand}
+              style={{ width: '100%' }}
+              onChange={(event) => patchDraft({ startupCommand: event.target.value })}
+            />
+          </Form.Item>
+        </Form>
       </div>
-    </div>
+
+      <div style={formGroupStyle}>
+        <Typography.Text style={formGroupTitleStyle}>资源配额</Typography.Text>
+        <Form {...inlineFormStyle}>
+          <Form.Item label={renderHelpLabel('CPU 配额', '请求值用于调度预留，限制值用于限制容器 CPU 上限。')} style={{ marginBottom: 8 }}>
+            <Flex align="center" gap={8}>
+              <Typography.Text type="secondary" style={{ width: 28 }}>
+                请求
+              </Typography.Text>
+              <InputNumber
+                style={{ width: 140 }}
+                min={0}
+                controls={false}
+                placeholder="数字"
+                value={cpuRequest.amount}
+                disabled={readOnly}
+                onChange={(value) => patchDraft({ cpu: value === null ? '' : `${value}${cpuRequest.unit}` })}
+              />
+              <Select
+                style={{ width: 72 }}
+                value={cpuRequest.unit}
+                options={[...cpuUnitOptions]}
+                disabled={readOnly}
+                onChange={(unit: 'm' | 'c') => {
+                  if (cpuRequest.amount === undefined) {
+                    patchDraft({ cpu: '' });
+                    return;
+                  }
+
+                  patchDraft({ cpu: `${cpuRequest.amount}${unit}` });
+                }}
+              />
+              <Typography.Text type="secondary" style={{ width: 28, marginLeft: 8 }}>
+                限制
+              </Typography.Text>
+              <InputNumber
+                style={{ width: 140 }}
+                min={0}
+                controls={false}
+                placeholder="数字"
+                value={cpuLimit.amount}
+                disabled={readOnly}
+                onChange={(value) => patchDraft({ cpuLimit: value === null ? '' : `${value}${cpuLimit.unit}` })}
+              />
+              <Select
+                style={{ width: 72 }}
+                value={cpuLimit.unit}
+                options={[...cpuUnitOptions]}
+                disabled={readOnly}
+                onChange={(unit: 'm' | 'c') => {
+                  if (cpuLimit.amount === undefined) {
+                    patchDraft({ cpuLimit: '' });
+                    return;
+                  }
+
+                  patchDraft({ cpuLimit: `${cpuLimit.amount}${unit}` });
+                }}
+              />
+            </Flex>
+          </Form.Item>
+          <Form.Item label={renderHelpLabel('内存配额', '仅支持数字，单位从 Mi / Gi 中选择。')} style={{ marginBottom: 0 }}>
+            <Flex align="center" gap={8}>
+              <Typography.Text type="secondary" style={{ width: 28 }}>
+                请求
+              </Typography.Text>
+              <InputNumber
+                style={{ width: 140 }}
+                min={0}
+                controls={false}
+                placeholder="数字"
+                value={memoryRequest.amount}
+                disabled={readOnly}
+                onChange={(value) => patchDraft({ memory: value === null ? '' : `${value}${memoryRequest.unit}` })}
+              />
+              <Select
+                style={{ width: 72 }}
+                value={memoryRequest.unit}
+                options={[...memoryUnitOptions]}
+                disabled={readOnly}
+                onChange={(unit: 'Mi' | 'Gi') => {
+                  if (memoryRequest.amount === undefined) {
+                    patchDraft({ memory: '' });
+                    return;
+                  }
+
+                  patchDraft({ memory: `${memoryRequest.amount}${unit}` });
+                }}
+              />
+              <Typography.Text type="secondary" style={{ width: 28, marginLeft: 8 }}>
+                限制
+              </Typography.Text>
+              <InputNumber
+                style={{ width: 140 }}
+                min={0}
+                controls={false}
+                placeholder="数字"
+                value={memoryLimit.amount}
+                disabled={readOnly}
+                onChange={(value) => patchDraft({ memoryLimit: value === null ? '' : `${value}${memoryLimit.unit}` })}
+              />
+              <Select
+                style={{ width: 72 }}
+                value={memoryLimit.unit}
+                options={[...memoryUnitOptions]}
+                disabled={readOnly}
+                onChange={(unit: 'Mi' | 'Gi') => {
+                  if (memoryLimit.amount === undefined) {
+                    patchDraft({ memoryLimit: '' });
+                    return;
+                  }
+
+                  patchDraft({ memoryLimit: `${memoryLimit.amount}${unit}` });
+                }}
+              />
+            </Flex>
+          </Form.Item>
+        </Form>
+      </div>
+
+      <div style={formGroupStyle}>
+        <Typography.Text style={formGroupTitleStyle}>网络配置</Typography.Text>
+        <Form {...inlineFormStyle}>
+          <Form.Item label="网络端口" style={{ marginBottom: 0 }}>
+            <Input
+              disabled={readOnly}
+              placeholder="端口列表"
+              style={{ width: '100%' }}
+              value={stringifyPorts(draft.ports)}
+              onChange={(event) => patchDraft({ ports: parsePorts(event.target.value) })}
+            />
+          </Form.Item>
+        </Form>
+      </div>
+
+      <div style={formGroupStyle}>
+        <Typography.Text style={formGroupTitleStyle}>环境变量</Typography.Text>
+        <Form {...inlineFormStyle}>
+          <Form.Item label="变量列表" style={{ marginBottom: 0 }}>
+            <div style={{ paddingBottom: 2 }}>
+              <Flex vertical gap={8}>
+                <div data-env-vars-table="true">
+                  <Table columns={envColumns} dataSource={envDataSource} size="small" pagination={false} locale={{ emptyText: '暂无环境变量' }} />
+                </div>
+                {!readOnly ? (
+                  <Button
+                    block
+                    size="small"
+                    type="dashed"
+                    icon={<PlusOutlined />}
+                    aria-label="新增变量"
+                    onClick={appendEnvVar}
+                    style={{ height: 30, borderRadius: 6, justifyContent: 'center' }}
+                  />
+                ) : null}
+              </Flex>
+            </div>
+          </Form.Item>
+        </Form>
+      </div>
+    </Flex>
   );
 }
 
-function ResourceTextArea({
-  title,
-  value,
-  placeholder,
-  onChange,
-}: {
-  title: string;
-  value: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-}) {
+function ReservedLayer({ title }: { title: string }) {
   return (
-    <Card title={title} styles={{ body: { padding: 16 } }}>
-      <Input.TextArea
-        autoSize={{ minRows: 4, maxRows: 8 }}
-        placeholder={placeholder}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </Card>
+    <div style={reservedLayerStyle}>
+      <Typography.Text style={{ fontSize: 13, color: '#4E5969', fontWeight: 600 }}>{title}</Typography.Text>
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        当前版本可选填，未填写不影响部署
+      </Typography.Text>
+    </div>
   );
 }
 
 function EditConfig({
   draft,
   onPatch,
+  readOnly = false,
 }: {
   draft: InstanceDraft;
-  onPatch: (patch: Partial<InstanceDraft>) => void;
+  onPatch?: (patch: Partial<InstanceDraft>) => void;
+  readOnly?: boolean;
 }) {
+  const patchDraft = (patch: Partial<InstanceDraft>) => {
+    if (readOnly) {
+      return;
+    }
+
+    onPatch?.(patch);
+  };
+
+  const [activeLayerKeys, setActiveLayerKeys] = useState<string[]>(['base']);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Card title="Deployment 规格" styles={{ body: { padding: 16 } }}>
-        <Form layout="vertical">
-          <div style={sectionGridStyle}>
-            <Form.Item label="实例名称" style={{ marginBottom: 0 }}>
-              <Input placeholder="实例名称" value={draft.name} onChange={(event) => onPatch({ name: event.target.value })} />
-            </Form.Item>
-            <Form.Item label="环境" style={{ marginBottom: 0 }}>
-              <Input placeholder="环境" value={draft.env} onChange={(event) => onPatch({ env: event.target.value })} />
-            </Form.Item>
-            <Form.Item label="实例类型" style={{ marginBottom: 0 }}>
-              <Select options={[...instanceTypeOptions]} value={draft.instanceType} onChange={(value) => onPatch({ instanceType: value })} />
-            </Form.Item>
-            <Form.Item label="副本数" style={{ marginBottom: 0 }}>
-              <InputNumber style={{ width: '100%' }} min={0} placeholder="副本数" value={draft.replicas} onChange={(value) => onPatch({ replicas: value ?? 0 })} />
-            </Form.Item>
-            <Form.Item label="容器名称" style={{ marginBottom: 0 }}>
-              <Input placeholder="容器名称" value={draft.containerName} onChange={(event) => onPatch({ containerName: event.target.value })} />
-            </Form.Item>
-            <Form.Item label="容器镜像" style={{ marginBottom: 0 }}>
-              <Input placeholder="容器镜像" value={draft.image} onChange={(event) => onPatch({ image: event.target.value })} />
-            </Form.Item>
-            <Form.Item label="端口列表" style={{ marginBottom: 0 }}>
-              <Input placeholder="端口列表" value={stringifyPorts(draft.ports)} onChange={(event) => onPatch({ ports: parsePorts(event.target.value) })} />
-            </Form.Item>
-          </div>
-        </Form>
-      </Card>
+    <div data-config-layer-collapse="true">
+      <Collapse
+        bordered={false}
+        expandIconPosition="end"
+        activeKey={activeLayerKeys}
+        onChange={(keys) => {
+          const next = (Array.isArray(keys) ? keys : [keys]).map((item) => String(item));
+          setActiveLayerKeys(next);
+        }}
+        items={[
+          {
+            key: 'base',
+            label: '基础配置层',
+            children: <BaseConfigLayer draft={draft} readOnly={readOnly} patchDraft={patchDraft} />,
+            forceRender: true,
+          },
+          {
+            key: 'extended',
+            label: '扩展配置层',
+            children: <ReservedLayer title="扩展配置（预留）" />,
+            forceRender: true,
+          },
+          {
+            key: 'advanced',
+            label: '高级配置层',
+            children: <ReservedLayer title="高级配置（预留）" />,
+            forceRender: true,
+          },
+        ]}
+      />
+      <style>
+        {`
+          [data-config-layer-collapse='true'] .ant-collapse-item {
+            border: 1px solid #e5e6eb !important;
+            border-radius: 8px !important;
+            overflow: hidden;
+            background: #fff;
+          }
 
-      <Card title="资源配额" styles={{ body: { padding: 16 } }}>
-        <Form layout="vertical">
-          <div style={sectionGridStyle}>
-            <Form.Item label="CPU Requests" style={{ marginBottom: 0 }}>
-              <Input placeholder="CPU Requests" value={draft.cpu} onChange={(event) => onPatch({ cpu: event.target.value })} />
-            </Form.Item>
-            <Form.Item label="Memory Requests" style={{ marginBottom: 0 }}>
-              <Input placeholder="Memory Requests" value={draft.memory} onChange={(event) => onPatch({ memory: event.target.value })} />
-            </Form.Item>
-            <Form.Item label="CPU Limits" style={{ marginBottom: 0 }}>
-              <Input placeholder="CPU Limits" value={draft.cpuLimit} onChange={(event) => onPatch({ cpuLimit: event.target.value })} />
-            </Form.Item>
-            <Form.Item label="Memory Limits" style={{ marginBottom: 0 }}>
-              <Input placeholder="Memory Limits" value={draft.memoryLimit} onChange={(event) => onPatch({ memoryLimit: event.target.value })} />
-            </Form.Item>
-          </div>
-        </Form>
-      </Card>
+          [data-config-layer-collapse='true'] .ant-collapse-item + .ant-collapse-item {
+            margin-top: 10px;
+          }
 
-      <Card title="环境变量" styles={{ body: { padding: 16 } }}>
-        <Input.TextArea
-          autoSize={{ minRows: 4, maxRows: 8 }}
-          placeholder="每行一个环境变量，格式 KEY=VALUE"
-          value={stringifyEnvVars(draft.envVars)}
-          onChange={(event) => onPatch({ envVars: parseEnvVars(event.target.value) })}
-        />
-      </Card>
+          [data-config-layer-collapse='true'] .ant-collapse-header {
+            min-height: 40px;
+            padding: 8px 12px !important;
+            align-items: center !important;
+          }
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <ResourceTextArea title="ConfigMaps" placeholder="每行一个 ConfigMap 名称" value={stringifyLineValues(draft.configMaps)} onChange={(value) => onPatch({ configMaps: parseLineValues(value) })} />
-        <ResourceTextArea title="Secrets" placeholder="每行一个 Secret 名称" value={stringifyLineValues(draft.secrets)} onChange={(value) => onPatch({ secrets: parseLineValues(value) })} />
-        <ResourceTextArea title="Services" placeholder="每行一个 Service 名称" value={stringifyLineValues(draft.services)} onChange={(value) => onPatch({ services: parseLineValues(value) })} />
-      </div>
+          [data-config-layer-collapse='true'] .ant-collapse-header-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1d2129;
+          }
+
+          [data-config-layer-collapse='true'] .ant-collapse-content {
+            border-top: 1px solid #f2f3f5;
+          }
+
+          [data-config-layer-collapse='true'] .ant-collapse-content-box {
+            padding: 12px !important;
+          }
+        `}
+      </style>
     </div>
   );
 }
 
 function PreviewYaml({ value }: { value: string }) {
-  return (
-    <Card title="YAML 配置" styles={{ body: { padding: 0 } }}>
-      <pre
-        style={{
-          margin: 0,
-          padding: 16,
-          background: '#0D1117',
-          color: '#C9D1D9',
-          fontSize: 12,
-          lineHeight: 1.7,
-          overflowX: 'auto',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-        }}
-      >
-        {value}
-      </pre>
-    </Card>
-  );
-}
-
-function EditYaml({
-  value,
-  error,
-  onChange,
-}: {
-  value: string;
-  error?: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <Card title="YAML 配置" styles={{ body: { padding: 16 } }}>
-      <Flex vertical gap={12}>
-        {error ? <Alert type="warning" showIcon message="YAML 解析失败，已保留文本修改" description={error} /> : null}
-        <Input.TextArea
-          autoSize={{ minRows: 18, maxRows: 26 }}
-          placeholder="编辑 YAML 配置"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
-        />
-      </Flex>
-    </Card>
-  );
+  return <YamlViewer value={value} />;
 }
 
 function PodStatusTag({ status }: { status: InstancePod['status'] }) {
@@ -1195,6 +1350,7 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
   const paginationOptions = [10, 25, 50, 100];
   const [activeId, setActiveId] = useState(instances[0]?.id);
   const [detailTab, setDetailTab] = useState<DetailTab>('pods');
+  const [configView, setConfigView] = useState<ConfigView>('visual');
   const [instancePagination, setInstancePagination] = useState({ current: 1, pageSize: 10 });
   const [podPagination, setPodPagination] = useState({ current: 1, pageSize: 10 });
   const [savedDrafts, setSavedDrafts] = useState<Record<string, InstanceDraft>>(() =>
@@ -1202,12 +1358,18 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
   );
   const [editDrafts, setEditDrafts] = useState<Record<string, InstanceDraft>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [yamlErrors, setYamlErrors] = useState<Record<string, string | undefined>>({});
   const [podDialog, setPodDialog] = useState<PodDialogState>(null);
 
   const activeInstance = useMemo(
     () => instances.find((item) => item.id === activeId) ?? instances[0],
     [activeId, instances],
+  );
+  const detailTabItems: ReadonlyArray<PageHeaderTabItem<DetailTab>> = useMemo(
+    () => [
+      { id: 'pods', label: 'Pod' },
+      { id: 'config', label: '配置' },
+    ],
+    [],
   );
 
   const activeSavedDraft = activeInstance ? savedDrafts[activeInstance.id] : undefined;
@@ -1263,10 +1425,6 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
         },
       };
     });
-    setYamlErrors((current) => ({
-      ...current,
-      [activeInstance.id]: undefined,
-    }));
   };
 
   const startEdit = () => {
@@ -1274,10 +1432,6 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
     setEditDrafts((current) => ({
       ...current,
       [activeInstance.id]: cloneDraft(activeSavedDraft),
-    }));
-    setYamlErrors((current) => ({
-      ...current,
-      [activeInstance.id]: undefined,
     }));
   };
 
@@ -1288,10 +1442,6 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
       delete next[activeInstance.id];
       return next;
     });
-    setYamlErrors((current) => ({
-      ...current,
-      [activeInstance.id]: undefined,
-    }));
   };
 
   const saveEdit = () => {
@@ -1305,7 +1455,7 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
       ...current,
       [activeInstance.id]: {
         ...cloneDraft(draft),
-        yaml: draft.yaml.trim() || serializeDraft(draft),
+        yaml: normalizeYamlImagePlaceholder(draft.yaml.trim() || serializeDraft(draft)),
       },
     }));
     setEditingId(null);
@@ -1314,50 +1464,17 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
       delete next[activeInstance.id];
       return next;
     });
-    setYamlErrors((current) => ({
-      ...current,
-      [activeInstance.id]: undefined,
-    }));
-  };
-
-  const updateYaml = (yaml: string) => {
-    if (!isEditing) {
-      return;
-    }
-
-    setEditDrafts((current) => ({
-      ...current,
-      [activeInstance.id]: {
-        ...(current[activeInstance.id] ?? cloneDraft(activeSavedDraft)),
-        yaml,
-      },
-    }));
-
-    try {
-      setEditDrafts((current) => ({
-        ...current,
-        [activeInstance.id]: parseDraftYaml(yaml, current[activeInstance.id] ?? cloneDraft(activeSavedDraft)),
-      }));
-      setYamlErrors((current) => ({
-        ...current,
-        [activeInstance.id]: undefined,
-      }));
-    } catch (error) {
-      setYamlErrors((current) => ({
-        ...current,
-        [activeInstance.id]: error instanceof Error ? error.message : '未知解析错误',
-      }));
-    }
   };
 
   const handleSwitchInstance = (instanceId: string) => {
     setActiveId(instanceId);
     setEditingId(null);
     setDetailTab('pods');
+    setConfigView('visual');
     setPodPagination((current) => ({ ...current, current: 1 }));
   };
 
-  const canEdit = detailTab === 'config' || detailTab === 'yaml';
+  const canEdit = detailTab === 'config';
 
   return (
     <>
@@ -1480,16 +1597,10 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
           styles={{ body: { padding: 8, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' } }}
           style={{ minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-            <Tabs
-              activeKey={detailTab}
-              onChange={(next) => setDetailTab(next as DetailTab)}
-              items={[
-                { key: 'pods', label: 'Pod' },
-                { key: 'config', label: '配置' },
-                { key: 'yaml', label: 'YAML' },
-              ]}
-            />
+          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div>
+              <PageHeaderTabs items={detailTabItems} value={detailTab} onChange={setDetailTab} right={<span />} />
+            </div>
 
             {detailTab === 'pods' ? (
               <PodsView
@@ -1498,8 +1609,20 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
                 onOpenDialog={(kind, title, content) => setPodDialog({ kind, title, content })}
               />
             ) : null}
-            {detailTab === 'config' ? (isEditing ? <EditConfig draft={activeDraft} onPatch={patchEditDraft} /> : <PreviewConfig draft={activeDraft} />) : null}
-            {detailTab === 'yaml' ? (isEditing ? <EditYaml value={activeDraft.yaml} error={yamlErrors[activeInstance.id]} onChange={updateYaml} /> : <PreviewYaml value={activeDraft.yaml} />) : null}
+            {detailTab === 'config' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Flex align="center" gap={8}>
+                  <Button size="small" type={configView === 'visual' ? 'primary' : 'default'} onClick={() => setConfigView('visual')}>
+                    可视化配置
+                  </Button>
+                  <Button size="small" type={configView === 'yaml' ? 'primary' : 'default'} onClick={() => setConfigView('yaml')}>
+                    YAML 视图
+                  </Button>
+                </Flex>
+                {configView === 'visual' ? (isEditing ? <EditConfig draft={activeDraft} onPatch={patchEditDraft} /> : <PreviewConfig draft={activeDraft} />) : null}
+                {configView === 'yaml' ? <PreviewYaml value={activeDraft.yaml} /> : null}
+              </div>
+            ) : null}
           </div>
           {detailTab === 'pods' ? (
             <TableBottomPagination

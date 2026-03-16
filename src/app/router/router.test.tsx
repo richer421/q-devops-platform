@@ -12,11 +12,11 @@ describe('app router', () => {
   it('keeps the cicd navigation item active on /cicd', async () => {
     render(<AppRouter kind="memory" initialEntries={['/cicd']} />);
 
-    const navItem = await screen.findByRole('link', { name: 'CI&CD 工作台' });
+    const navItem = await screen.findByRole('link', { name: '业务交付' });
     const navContainer = navItem.closest('.ant-menu-item');
 
     expect(navContainer).toHaveClass('ant-menu-item-selected');
-    expect(screen.getByRole('heading', { name: 'CI&CD 工作台' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '业务交付' })).toBeInTheDocument();
   });
 
   it('renders the not-found page for an unknown route', async () => {

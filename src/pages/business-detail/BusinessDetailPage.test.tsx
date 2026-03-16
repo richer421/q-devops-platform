@@ -25,7 +25,7 @@ describe('business detail page', () => {
     expect(screen.getByRole('button', { name: /选择实例 inst-api-dev/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Pod' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '配置' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /^YAML$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^YAML$/ })).toBeNull();
 
     fireEvent.click(screen.getByRole('tab', { name: /^CI 配置/ }));
     expect(screen.getByText('ci-api-server')).toBeInTheDocument();
@@ -46,12 +46,14 @@ describe('business detail page', () => {
     expect(screen.getByText('api-server-dev-6f9d4d4b7f-p7m4n')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: '配置' }));
-    expect(screen.getByText('Deployment 规格')).toBeInTheDocument();
+    expect(screen.getByText('基础配置层')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /编\s*辑/ })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'YAML' }));
-    expect(await screen.findByText(/instance_type: deployment/)).toBeInTheDocument();
-    expect(screen.getByText(/attach_resources:/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'YAML 视图' }));
+    const yamlViewer = await screen.findByTestId('pod-yaml-viewer');
+    expect(yamlViewer).toHaveTextContent('instance_type: deployment');
+    expect(yamlViewer).toHaveTextContent('image: IMAGE');
+    expect(yamlViewer).toHaveTextContent('attach_resources:');
   });
 
   it('switches the active business instance from the config entry', async () => {

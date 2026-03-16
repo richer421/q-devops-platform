@@ -50,7 +50,7 @@ describe('cicd page', () => {
   it('switches to the release workspace tab', async () => {
     render(<AppRouter kind="memory" initialEntries={['/cicd']} />);
 
-    fireEvent.click(await screen.findByRole('tab', { name: /发布工作台/i }));
+    fireEvent.click(await screen.findByRole('tab', { name: /交付上线/i }));
 
     expect(await screen.findByText('web-app')).toBeInTheDocument();
     expect(screen.getByText('#REL-004')).toBeInTheDocument();

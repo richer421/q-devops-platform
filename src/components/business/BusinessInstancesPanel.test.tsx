@@ -79,15 +79,15 @@ describe('business instances panel', () => {
     fireEvent.click(screen.getByRole('button', { name: /编\s*辑/ }));
 
     const replicasInput = screen.getByPlaceholderText('副本数');
-    const imageInput = screen.getByPlaceholderText('容器镜像');
 
     fireEvent.change(replicasInput, { target: { value: '4' } });
-    fireEvent.change(imageInput, { target: { value: 'harbor.example.io/org/api-server:2.0.0' } });
     fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
 
-    expect(screen.queryByPlaceholderText('副本数')).toBeNull();
-    expect(screen.getByText('4')).toBeInTheDocument();
-    expect(screen.getByText('harbor.example.io/org/api-server:2.0.0')).toBeInTheDocument();
+    const readonlyReplicasInput = screen.getByPlaceholderText('副本数');
+
+    expect(readonlyReplicasInput).toBeDisabled();
+    expect((readonlyReplicasInput as HTMLInputElement).value).toBe('4');
+    expect(screen.queryByPlaceholderText('容器镜像')).toBeNull();
   }, 10000);
 
   it('switches the active instance and opens pod yaml dialog', async () => {

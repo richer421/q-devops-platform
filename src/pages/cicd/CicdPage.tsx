@@ -22,8 +22,8 @@ export function CicdPage() {
 
   const tabItems: ReadonlyArray<PageHeaderTabItem<TabKey>> = useMemo(
     () => [
-      { id: 'ci', label: 'CI 工作台', icon: <PlayCircleOutlined /> },
-      { id: 'release', label: '发布工作台', icon: <RocketOutlined /> },
+      { id: 'ci', label: '自动构建', icon: <PlayCircleOutlined /> },
+      { id: 'release', label: '交付上线', icon: <RocketOutlined /> },
     ],
     [],
   );
@@ -33,8 +33,8 @@ export function CicdPage() {
       <CicdAnimationStyles />
 
       <BasePage
-        breadcrumbs={[{ label: 'Q DevOps' }, { label: 'CI&CD 工作台' }]}
-        title="CI&CD 工作台"
+        breadcrumbs={[{ label: 'Q DevOps' }, { label: '业务交付' }]}
+        title="业务交付"
         description="触发构建、执行发布并实时追踪进度"
         action={
           tab === 'ci' ? (
