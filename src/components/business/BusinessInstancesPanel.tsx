@@ -600,28 +600,24 @@ function BaseConfigLayer({
 
       <div style={formGroupStyle}>
         <Typography.Text style={formGroupTitleStyle}>环境变量</Typography.Text>
-        <Form {...inlineFormStyle}>
-          <Form.Item label="变量列表" style={{ marginBottom: 0 }}>
-            <div style={{ paddingBottom: 2 }}>
-              <Flex vertical gap={8}>
-                <div data-env-vars-table="true">
-                  <Table columns={envColumns} dataSource={envDataSource} size="small" pagination={false} locale={{ emptyText: '暂无环境变量' }} />
-                </div>
-                {!readOnly ? (
-                  <Button
-                    block
-                    size="small"
-                    type="dashed"
-                    icon={<PlusOutlined />}
-                    aria-label="新增变量"
-                    onClick={appendEnvVar}
-                    style={{ height: 30, borderRadius: 6, justifyContent: 'center' }}
-                  />
-                ) : null}
-              </Flex>
+        <div style={{ paddingTop: 2, paddingBottom: 2 }}>
+          <Flex vertical gap={8}>
+            <div data-env-vars-table="true">
+              <Table columns={envColumns} dataSource={envDataSource} size="small" pagination={false} locale={{ emptyText: '暂无环境变量' }} />
             </div>
-          </Form.Item>
-        </Form>
+            {!readOnly ? (
+              <Button
+                block
+                size="small"
+                type="dashed"
+                icon={<PlusOutlined />}
+                aria-label="新增变量"
+                onClick={appendEnvVar}
+                style={{ height: 30, borderRadius: 6, justifyContent: 'center' }}
+              />
+            ) : null}
+          </Flex>
+        </div>
       </div>
     </Flex>
   );
@@ -1597,8 +1593,8 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
           styles={{ body: { padding: 8, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' } }}
           style={{ minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <div>
+          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            <div style={{ paddingBottom: 6 }}>
               <PageHeaderTabs items={detailTabItems} value={detailTab} onChange={setDetailTab} right={<span />} />
             </div>
 
