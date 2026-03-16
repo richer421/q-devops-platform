@@ -1,5 +1,5 @@
 import { DeleteOutlined, PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
-import { Button, Card, Collapse, Empty, Flex, Form, Input, InputNumber, List, Modal, Select, Table, Tag, Tooltip, Typography } from 'antd';
+import { Button, Card, Collapse, Empty, Flex, Form, Input, InputNumber, List, Modal, Radio, Select, Table, Tag, Tooltip, Typography } from 'antd';
 import type { TableProps } from 'antd';
 import { FileText, Terminal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -32,6 +32,7 @@ type InstanceDraft = {
   cpuLimit: string;
   memoryLimit: string;
   startupCommand: string;
+  networkMode: 'k8s-service' | 'apisix';
   status: Instance['status'];
   containerName: string;
   image: string;
@@ -106,6 +107,11 @@ const memoryUnitOptions = [
 const cpuUnitOptions = [
   { label: 'm', value: 'm' },
   { label: 'c', value: 'c' },
+] as const;
+
+const networkModeOptions = [
+  { label: 'k8s service', value: 'k8s-service' },
+  { label: 'apisix', value: 'apisix', disabled: true },
 ] as const;
 
 const defaultContainerLimitLookup: Record<string, { cpuLimit: string; memoryLimit: string }> = {
@@ -237,6 +243,7 @@ function buildDraft(instance: Instance): InstanceDraft {
       (container as { command?: string | string[] } | undefined)?.command,
       (container as { args?: string | string[] } | undefined)?.args,
     ),
+    networkMode: 'k8s-service',
     status: instance.status,
     containerName: container?.name ?? instance.name,
     image: container?.image ?? '',
@@ -256,13 +263,12 @@ function buildDraft(instance: Instance): InstanceDraft {
   };
 }
 
-function stringifyPorts(ports: number[]) {
-  return ports.join(', ');
+function toPortSelectValues(ports: number[]) {
+  return ports.map((port) => String(port));
 }
 
-function parsePorts(value: string) {
-  return value
-    .split(',')
+function parsePortSelectValues(values: string[]) {
+  return values
     .map((item) => Number(item.trim()))
     .filter((item): item is number => Number.isFinite(item));
 }
@@ -586,13 +592,24 @@ function BaseConfigLayer({
       <div style={formGroupStyle}>
         <Typography.Text style={formGroupTitleStyle}>网络配置</Typography.Text>
         <Form {...inlineFormStyle}>
-          <Form.Item label="网络端口" style={{ marginBottom: 0 }}>
-            <Input
+          <Form.Item label="通信模式" style={{ marginBottom: 8 }}>
+            <Radio.Group
+              value={draft.networkMode}
+              options={[...networkModeOptions]}
               disabled={readOnly}
-              placeholder="端口列表"
+              onChange={(event) => patchDraft({ networkMode: event.target.value as 'k8s-service' | 'apisix' })}
+            />
+          </Form.Item>
+          <Form.Item label="端口" style={{ marginBottom: 0 }}>
+            <Select
+              mode="tags"
+              disabled={readOnly}
+              placeholder="输入端口后回车，可选择多个"
               style={{ width: '100%' }}
-              value={stringifyPorts(draft.ports)}
-              onChange={(event) => patchDraft({ ports: parsePorts(event.target.value) })}
+              value={toPortSelectValues(draft.ports)}
+              tokenSeparators={[',', ' ']}
+              open={false}
+              onChange={(values) => patchDraft({ ports: parsePortSelectValues(values) })}
             />
           </Form.Item>
         </Form>
