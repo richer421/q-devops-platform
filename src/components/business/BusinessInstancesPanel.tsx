@@ -660,7 +660,7 @@ function EditConfig({
         expandIconPosition="end"
         activeKey={activeLayerKeys}
         onChange={(keys) => {
-          const next = (Array.isArray(keys) ? keys : [keys]).map((item) => String(item));
+          const next = [...(Array.isArray(keys) ? keys : [keys])].map((item) => String(item));
           setActiveLayerKeys(next);
         }}
         items={[
@@ -1222,7 +1222,7 @@ function PodsView({
           locale={{ emptyText: <Empty description="暂无 Pod" /> }}
           expandable={{
             expandedRowKeys,
-            onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
+            onExpandedRowsChange: (keys) => setExpandedRowKeys([...keys]),
             showExpandColumn: false,
             expandIcon: () => null,
             rowExpandable: (record) => record.pod.containers.length > 0,
