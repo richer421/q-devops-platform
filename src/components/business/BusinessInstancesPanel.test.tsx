@@ -90,6 +90,31 @@ describe('business instances panel', () => {
     expect(screen.queryByPlaceholderText('容器镜像')).toBeNull();
   }, 10000);
 
+  it('filters instances by environment and fuzzy name', async () => {
+    render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
+
+    fireEvent.mouseDown(screen.getByText('全部环境'));
+    fireEvent.click(await screen.findByText('PROD'));
+
+    expect(screen.getAllByText('inst-api-prod').length).toBeGreaterThan(0);
+    expect(screen.queryByText('inst-api-dev')).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText('名称模糊匹配'), { target: { value: 'prod' } });
+    expect(screen.getAllByText('inst-api-prod').length).toBeGreaterThan(0);
+  });
+
+  it('creates a new instance from modal and enters config edit mode', async () => {
+    render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /创建实例/ }));
+    fireEvent.change(screen.getByPlaceholderText('例如：inst-api-dev'), { target: { value: 'inst-api-gray' } });
+    fireEvent.click(screen.getByRole('button', { name: '创建并编辑' }));
+
+    expect((await screen.findAllByText('inst-api-gray')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /保\s*存/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '配置' })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('switches the active instance and opens pod yaml dialog', async () => {
     render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
 

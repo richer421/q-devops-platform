@@ -1,4 +1,4 @@
-import { DeleteOutlined, PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined, QuestionCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Card, Collapse, Empty, Flex, Form, Input, InputNumber, List, Modal, Radio, Select, Table, Tag, Tooltip, Typography } from 'antd';
 import type { TableProps } from 'antd';
 import { FileText, Terminal } from 'lucide-react';
@@ -13,6 +13,8 @@ import { PageHeaderTabs, type PageHeaderTabItem } from '../layout/page-header';
 
 type BusinessInstancesPanelProps = {
   instances: ReadonlyArray<Instance>;
+  onCreateInstance?: (instance: Instance) => Promise<Instance | void> | Instance | void;
+  onSaveInstance?: (instance: Instance) => Promise<Instance | void> | Instance | void;
 };
 
 type DetailTab = 'pods' | 'config';
@@ -45,6 +47,14 @@ type InstanceDraft = {
 };
 
 type PodDialogKind = 'events' | 'logs' | 'terminal' | 'yaml';
+
+type CreateTemplate = 'blank' | 'web' | 'worker';
+
+type CreateInstanceFormValues = {
+  name: string;
+  env: string;
+  template: CreateTemplate;
+};
 
 type PodDialogState = {
   kind: PodDialogKind;
@@ -340,6 +350,105 @@ function parseCpuValue(value: string): { amount: number | undefined; unit: 'm' |
   }
 
   return { amount, unit: 'm' };
+}
+
+function draftToInstance(draft: InstanceDraft, previous?: Instance): Instance {
+  return {
+    id: draft.id,
+    buId: draft.buId,
+    name: draft.name,
+    env: draft.env,
+    type: draft.type,
+    instanceType: draft.instanceType,
+    replicas: draft.replicas,
+    readyReplicas: previous?.readyReplicas ?? Math.min(draft.readyReplicas, draft.replicas),
+    cpu: draft.cpu,
+    memory: draft.memory,
+    yaml: normalizeYamlImagePlaceholder(draft.yaml.trim() || serializeDraft(draft)),
+    spec: {
+      deployment: {
+        replicas: draft.replicas,
+        template: {
+          spec: {
+            containers: [
+              {
+                name: draft.containerName,
+                image: draft.image || 'IMAGE',
+                ports: draft.ports.map((port) => ({ containerPort: port })),
+                env: draft.envVars.map((item) => ({ name: item.name, value: item.value })),
+                resources: {
+                  requests: {
+                    cpu: draft.cpu,
+                    memory: draft.memory,
+                  },
+                  limits: {
+                    cpu: draft.cpuLimit || undefined,
+                    memory: draft.memoryLimit || undefined,
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+    attachResources: {
+      configMaps: createNameMap(draft.configMaps),
+      secrets: createNameMap(draft.secrets),
+      services: createNameMap(draft.services),
+    },
+    pods: previous?.pods ?? [],
+    status: previous?.status ?? 'stopped',
+  };
+}
+
+function buildTemplateDraft({
+  id,
+  buId,
+  name,
+  env,
+  template,
+}: {
+  id: string;
+  buId: string;
+  name: string;
+  env: string;
+  template: CreateTemplate;
+}): InstanceDraft {
+  const normalizedTemplate = template;
+  const isWeb = normalizedTemplate === 'web';
+  const isWorker = normalizedTemplate === 'worker';
+
+  const draft: InstanceDraft = {
+    id,
+    buId,
+    name,
+    env,
+    type: 'Deployment',
+    instanceType: 'deployment',
+    replicas: 1,
+    readyReplicas: 0,
+    cpu: isWorker ? '500m' : '250m',
+    memory: isWorker ? '512Mi' : '256Mi',
+    cpuLimit: isWorker ? '1000m' : '500m',
+    memoryLimit: isWorker ? '1Gi' : '512Mi',
+    startupCommand: isWorker ? 'python worker.py' : isWeb ? 'npm run start' : '',
+    networkMode: 'k8s-service',
+    status: 'stopped',
+    containerName: isWorker ? 'worker' : 'app',
+    image: 'IMAGE',
+    ports: isWeb ? [8080] : [],
+    envVars: [{ name: 'APP_ENV', value: env }],
+    configMaps: [],
+    secrets: [],
+    services: isWeb ? [name] : [],
+    yaml: '',
+  };
+
+  return {
+    ...draft,
+    yaml: serializeDraft(draft),
+  };
 }
 
 function PreviewConfig({ draft }: { draft: InstanceDraft }) {
@@ -1359,23 +1468,88 @@ function TableBottomPagination({
   );
 }
 
-export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProps) {
+export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInstance }: BusinessInstancesPanelProps) {
   const paginationOptions = [10, 25, 50, 100];
-  const [activeId, setActiveId] = useState(instances[0]?.id);
+  const [instanceItems, setInstanceItems] = useState<Instance[]>(() => [...instances]);
+  const [activeId, setActiveId] = useState<string | undefined>(instances[0]?.id);
   const [detailTab, setDetailTab] = useState<DetailTab>('pods');
   const [configView, setConfigView] = useState<ConfigView>('visual');
   const [instancePagination, setInstancePagination] = useState({ current: 1, pageSize: 10 });
   const [podPagination, setPodPagination] = useState({ current: 1, pageSize: 10 });
+  const [instanceKeyword, setInstanceKeyword] = useState('');
+  const [instanceEnvFilter, setInstanceEnvFilter] = useState<string>('all');
   const [savedDrafts, setSavedDrafts] = useState<Record<string, InstanceDraft>>(() =>
     Object.fromEntries(instances.map((item) => [item.id, buildDraft(item)])),
   );
   const [editDrafts, setEditDrafts] = useState<Record<string, InstanceDraft>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [podDialog, setPodDialog] = useState<PodDialogState>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [saveSubmitting, setSaveSubmitting] = useState(false);
+  const [createForm] = Form.useForm<CreateInstanceFormValues>();
+  const instancePaginationCurrent = instancePagination.current;
+  const instancePaginationPageSize = instancePagination.pageSize;
+
+  const instanceIdsSignature = useMemo(() => instances.map((item) => item.id).join('|'), [instances]);
+
+  useEffect(() => {
+    setInstanceItems([...instances]);
+    setSavedDrafts(Object.fromEntries(instances.map((item) => [item.id, buildDraft(item)])));
+    setEditDrafts({});
+    setEditingId(null);
+    setActiveId(instances[0]?.id);
+    setInstancePagination((current) => ({ ...current, current: 1 }));
+    setPodPagination((current) => ({ ...current, current: 1 }));
+  }, [instanceIdsSignature, instances]);
+
+  const envFilterOptions = useMemo(() => {
+    const knownOrder = ['dev', 'test', 'gray', 'prod'];
+    const set = new Set(instanceItems.map((item) => item.env.toLowerCase()));
+    const ordered = knownOrder.filter((env) => set.has(env));
+    const rest = Array.from(set).filter((env) => !knownOrder.includes(env));
+    const values = [...ordered, ...rest];
+    return [
+      { label: '全部环境', value: 'all' },
+      ...values.map((env) => ({ label: env.toUpperCase(), value: env })),
+    ];
+  }, [instanceItems]);
+
+  const filteredInstances = useMemo(() => {
+    const normalizedKeyword = instanceKeyword.trim().toLowerCase();
+
+    return instanceItems.filter((item) => {
+      const matchedEnv = instanceEnvFilter === 'all' || item.env.toLowerCase() === instanceEnvFilter.toLowerCase();
+      if (!matchedEnv) {
+        return false;
+      }
+      if (!normalizedKeyword) {
+        return true;
+      }
+      return item.name.toLowerCase().includes(normalizedKeyword);
+    });
+  }, [instanceEnvFilter, instanceItems, instanceKeyword]);
+
+  useEffect(() => {
+    if (filteredInstances.length === 0) {
+      setActiveId(undefined);
+      return;
+    }
+    if (!activeId || !filteredInstances.some((item) => item.id === activeId)) {
+      setActiveId(filteredInstances[0].id);
+    }
+  }, [activeId, filteredInstances]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredInstances.length / instancePaginationPageSize));
+    if (instancePaginationCurrent > maxPage) {
+      setInstancePagination((current) => ({ ...current, current: maxPage }));
+    }
+  }, [filteredInstances.length, instancePaginationCurrent, instancePaginationPageSize]);
 
   const activeInstance = useMemo(
-    () => instances.find((item) => item.id === activeId) ?? instances[0],
-    [activeId, instances],
+    () => instanceItems.find((item) => item.id === activeId),
+    [activeId, instanceItems],
   );
   const detailTabItems: ReadonlyArray<PageHeaderTabItem<DetailTab>> = useMemo(
     () => [
@@ -1386,13 +1560,17 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
   );
 
   const activeSavedDraft = activeInstance ? savedDrafts[activeInstance.id] : undefined;
+  const isEditing = Boolean(activeInstance) && editingId === activeInstance?.id;
+  const activeDraft = activeInstance && activeSavedDraft
+    ? (isEditing ? editDrafts[activeInstance.id] ?? activeSavedDraft : activeSavedDraft)
+    : undefined;
   const pagedInstances = useMemo(
     () =>
-      instances.slice(
+      filteredInstances.slice(
         (instancePagination.current - 1) * instancePagination.pageSize,
         instancePagination.current * instancePagination.pageSize,
       ),
-    [instancePagination, instances],
+    [filteredInstances, instancePagination],
   );
   const allPods = useMemo(() => activeInstance?.pods ?? [], [activeInstance]);
   const pagedPods = useMemo(
@@ -1415,15 +1593,8 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
     [activeInstance],
   );
 
-  if (instances.length === 0 || !activeInstance || !activeSavedDraft) {
-    return <Empty description="暂无业务实例" />;
-  }
-
-  const isEditing = editingId === activeInstance.id;
-  const activeDraft = isEditing ? editDrafts[activeInstance.id] ?? activeSavedDraft : activeSavedDraft;
-
   const patchEditDraft = (patch: Partial<InstanceDraft>) => {
-    if (!isEditing) {
+    if (!isEditing || !activeInstance || !activeSavedDraft) {
       return;
     }
 
@@ -1441,6 +1612,9 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
   };
 
   const startEdit = () => {
+    if (!activeInstance || !activeSavedDraft) {
+      return;
+    }
     setEditingId(activeInstance.id);
     setEditDrafts((current) => ({
       ...current,
@@ -1449,6 +1623,9 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
   };
 
   const cancelEdit = () => {
+    if (!activeInstance) {
+      return;
+    }
     setEditingId(null);
     setEditDrafts((current) => {
       const next = { ...current };
@@ -1457,26 +1634,51 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
     });
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
+    if (!activeInstance) {
+      return;
+    }
+
     const draft = editDrafts[activeInstance.id];
     if (!draft) {
       setEditingId(null);
       return;
     }
 
-    setSavedDrafts((current) => ({
-      ...current,
-      [activeInstance.id]: {
-        ...cloneDraft(draft),
-        yaml: normalizeYamlImagePlaceholder(draft.yaml.trim() || serializeDraft(draft)),
-      },
-    }));
-    setEditingId(null);
-    setEditDrafts((current) => {
-      const next = { ...current };
-      delete next[activeInstance.id];
-      return next;
-    });
+    const normalizedDraft = {
+      ...cloneDraft(draft),
+      yaml: normalizeYamlImagePlaceholder(draft.yaml.trim() || serializeDraft(draft)),
+    };
+    let nextInstance = draftToInstance(normalizedDraft, activeInstance);
+
+    try {
+      setSaveSubmitting(true);
+
+      if (onSaveInstance) {
+        const remoteInstance = await onSaveInstance(nextInstance);
+        if (remoteInstance) {
+          nextInstance = remoteInstance;
+        }
+      }
+
+      setInstanceItems((current) =>
+        current.map((item) => (item.id === activeInstance.id ? nextInstance : item)),
+      );
+      setSavedDrafts((current) => ({
+        ...current,
+        [activeInstance.id]: buildDraft(nextInstance),
+      }));
+      setEditingId(null);
+      setEditDrafts((current) => {
+        const next = { ...current };
+        delete next[activeInstance.id];
+        return next;
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setSaveSubmitting(false);
+    }
   };
 
   const handleSwitchInstance = (instanceId: string) => {
@@ -1487,7 +1689,65 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
     setPodPagination((current) => ({ ...current, current: 1 }));
   };
 
-  const canEdit = detailTab === 'config';
+  const handleOpenCreateModal = () => {
+    createForm.setFieldsValue({
+      name: '',
+      env: activeInstance?.env ?? 'dev',
+      template: 'blank',
+    });
+    setCreateModalOpen(true);
+  };
+
+  const handleCreateInstance = async () => {
+    try {
+      const values = await createForm.validateFields();
+      setCreateSubmitting(true);
+
+      const nextId = `inst-${Date.now()}`;
+      const nextDraft = buildTemplateDraft({
+        id: nextId,
+        buId: activeInstance?.buId ?? instanceItems[0]?.buId ?? '',
+        name: values.name.trim(),
+        env: values.env,
+        template: values.template,
+      });
+      let nextInstance = draftToInstance(nextDraft);
+
+      if (onCreateInstance) {
+        const remoteInstance = await onCreateInstance(nextInstance);
+        if (remoteInstance) {
+          nextInstance = remoteInstance;
+        }
+      }
+
+      const persistedDraft = buildDraft(nextInstance);
+      setInstanceItems((current) => [nextInstance, ...current]);
+      setSavedDrafts((current) => ({
+        ...current,
+        [nextInstance.id]: persistedDraft,
+      }));
+      setEditDrafts((current) => ({
+        ...current,
+        [nextInstance.id]: cloneDraft(persistedDraft),
+      }));
+      setActiveId(nextInstance.id);
+      setEditingId(nextInstance.id);
+      setDetailTab('config');
+      setConfigView('visual');
+      setInstancePagination((current) => ({ ...current, current: 1 }));
+      setCreateModalOpen(false);
+    } catch (error) {
+      const maybeFormError = error as { errorFields?: unknown };
+      if (maybeFormError.errorFields) {
+        return;
+      }
+      console.error(error);
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
+  const canEdit = detailTab === 'config' && Boolean(activeDraft);
 
   return (
     <>
@@ -1505,97 +1765,131 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
       >
         <Card
           title="业务实例"
+          extra={(
+            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+              创建实例
+            </Button>
+          )}
           styles={{
             header: { paddingInline: 16 },
             body: { padding: 8, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' },
           }}
           style={{ minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
+          <div style={{ marginBottom: 8 }}>
+            <Flex gap={8} align="center">
+              <Select
+                style={{ width: 118 }}
+                value={instanceEnvFilter}
+                options={envFilterOptions}
+                onChange={(value) => {
+                  setInstanceEnvFilter(value);
+                  setInstancePagination((current) => ({ ...current, current: 1 }));
+                }}
+              />
+              <Input
+                value={instanceKeyword}
+                allowClear
+                placeholder="名称模糊匹配"
+                prefix={<SearchOutlined />}
+                onChange={(event) => {
+                  setInstanceKeyword(event.target.value);
+                  setInstancePagination((current) => ({ ...current, current: 1 }));
+                }}
+              />
+            </Flex>
+          </div>
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-            <List
-              dataSource={[...pagedInstances]}
-              renderItem={(instance) => {
-                const statusMeta = getInstanceStatusMeta(instance.status);
-                const selected = activeInstance.id === instance.id;
+            {filteredInstances.length === 0 ? (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无匹配实例" />
+            ) : (
+              <List
+                dataSource={[...pagedInstances]}
+                renderItem={(instance) => {
+                  const statusMeta = getInstanceStatusMeta(instance.status);
+                  const selected = activeInstance?.id === instance.id;
 
-                return (
-                  <List.Item style={{ padding: 0, border: 'none' }}>
-                    <div
-                      role="button"
-                      aria-label={`选择实例 ${instance.name}`}
-                      tabIndex={0}
-                      onClick={() => handleSwitchInstance(instance.id)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          handleSwitchInstance(instance.id);
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        textAlign: 'left',
-                        border: 'none',
-                        background: selected ? '#F7FAFF' : '#fff',
-                        padding: 16,
-                        cursor: 'pointer',
-                        borderBottom: '1px solid #F2F3F5',
-                      }}
-                    >
-                      <Flex align="center" justify="space-between" gap={12}>
-                        <div style={{ minWidth: 0 }}>
-                          <Typography.Text strong ellipsis style={{ display: 'block' }}>
-                            {instance.name}
-                          </Typography.Text>
-                          <Flex align="center" gap={8} wrap={false} style={{ marginTop: 8 }}>
-                            <EnvTag env={instance.env} />
-                            <Tag style={{ margin: 0, border: 'none', borderRadius: 999, background: '#F2F3F5', color: '#4E5969' }}>
-                              {instance.type}
-                            </Tag>
-                            <Tag
-                              style={{
-                                margin: 0,
-                                border: 'none',
-                                borderRadius: 999,
-                                background: statusMeta.badgeClass.includes('#') ? '#E8FFEA' : undefined,
-                              }}
-                              color={instance.status === 'running' ? 'success' : instance.status === 'degraded' ? 'warning' : 'default'}
-                            >
-                              {statusMeta.label}
-                            </Tag>
-                          </Flex>
-                        </div>
-                      </Flex>
-                    </div>
-                  </List.Item>
-                );
-              }}
-            />
+                  return (
+                    <List.Item style={{ padding: 0, border: 'none' }}>
+                      <div
+                        role="button"
+                        aria-label={`选择实例 ${instance.name}`}
+                        tabIndex={0}
+                        onClick={() => handleSwitchInstance(instance.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleSwitchInstance(instance.id);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          border: 'none',
+                          background: selected ? '#F7FAFF' : '#fff',
+                          padding: 16,
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #F2F3F5',
+                        }}
+                      >
+                        <Flex align="center" justify="space-between" gap={12}>
+                          <div style={{ minWidth: 0 }}>
+                            <Typography.Text strong ellipsis style={{ display: 'block' }}>
+                              {instance.name}
+                            </Typography.Text>
+                            <Flex align="center" gap={8} wrap={false} style={{ marginTop: 8 }}>
+                              <EnvTag env={instance.env} />
+                              <Tag style={{ margin: 0, border: 'none', borderRadius: 999, background: '#F2F3F5', color: '#4E5969' }}>
+                                {instance.type}
+                              </Tag>
+                              <Tag
+                                style={{
+                                  margin: 0,
+                                  border: 'none',
+                                  borderRadius: 999,
+                                  background: statusMeta.badgeClass.includes('#') ? '#E8FFEA' : undefined,
+                                }}
+                                color={instance.status === 'running' ? 'success' : instance.status === 'degraded' ? 'warning' : 'default'}
+                              >
+                                {statusMeta.label}
+                              </Tag>
+                            </Flex>
+                          </div>
+                        </Flex>
+                      </div>
+                    </List.Item>
+                  );
+                }}
+              />
+            )}
           </div>
           <TableBottomPagination
             current={instancePagination.current}
             pageSize={instancePagination.pageSize}
-            total={instances.length}
+            total={filteredInstances.length}
             pageSizeOptions={paginationOptions}
             onChange={(page, pageSize) => setInstancePagination({ current: page, pageSize })}
           />
         </Card>
 
         <Card
-          title={
+          title={activeDraft ? (
             <Flex align="center" gap={8}>
               <Typography.Text strong>{activeDraft.name}</Typography.Text>
               <EnvTag env={activeDraft.env} />
             </Flex>
-          }
-          extra={
+          ) : (
+            <Typography.Text strong>实例详情</Typography.Text>
+          )}
+          extra={activeDraft ? (
             <Flex align="center" gap={8}>
               {canEdit ? (
                 isEditing ? (
                   <>
-                    <Button size="small" onClick={cancelEdit}>
+                    <Button size="small" onClick={cancelEdit} disabled={saveSubmitting}>
                       取消
                     </Button>
-                    <Button size="small" type="primary" onClick={saveEdit}>
+                    <Button size="small" type="primary" onClick={() => void saveEdit()} loading={saveSubmitting}>
                       保存
                     </Button>
                   </>
@@ -1606,48 +1900,103 @@ export function BusinessInstancesPanel({ instances }: BusinessInstancesPanelProp
                 )
               ) : null}
             </Flex>
-          }
+          ) : null}
           styles={{ body: { padding: 8, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' } }}
           style={{ minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-            <div style={{ paddingBottom: 6 }}>
-              <PageHeaderTabs items={detailTabItems} value={detailTab} onChange={setDetailTab} right={<span />} />
+          {!activeDraft ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Empty description={instanceItems.length === 0 ? '暂无业务实例，请先创建' : '当前筛选条件下无可展示实例'} />
             </div>
+          ) : (
+            <>
+              <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                <div style={{ paddingBottom: 6 }}>
+                  <PageHeaderTabs items={detailTabItems} value={detailTab} onChange={setDetailTab} right={<span />} />
+                </div>
 
-            {detailTab === 'pods' ? (
-              <PodsView
-                pods={pagedPods}
-                containerLimitLookup={containerLimitLookup}
-                onOpenDialog={(kind, title, content) => setPodDialog({ kind, title, content })}
-              />
-            ) : null}
-            {detailTab === 'config' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <Flex align="center" gap={8}>
-                  <Button size="small" type={configView === 'visual' ? 'primary' : 'default'} onClick={() => setConfigView('visual')}>
-                    可视化配置
-                  </Button>
-                  <Button size="small" type={configView === 'yaml' ? 'primary' : 'default'} onClick={() => setConfigView('yaml')}>
-                    YAML 视图
-                  </Button>
-                </Flex>
-                {configView === 'visual' ? (isEditing ? <EditConfig draft={activeDraft} onPatch={patchEditDraft} /> : <PreviewConfig draft={activeDraft} />) : null}
-                {configView === 'yaml' ? <PreviewYaml value={activeDraft.yaml} /> : null}
+                {detailTab === 'pods' ? (
+                  <PodsView
+                    pods={pagedPods}
+                    containerLimitLookup={containerLimitLookup}
+                    onOpenDialog={(kind, title, content) => setPodDialog({ kind, title, content })}
+                  />
+                ) : null}
+                {detailTab === 'config' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <Flex align="center" gap={8}>
+                      <Button size="small" type={configView === 'visual' ? 'primary' : 'default'} onClick={() => setConfigView('visual')}>
+                        可视化配置
+                      </Button>
+                      <Button size="small" type={configView === 'yaml' ? 'primary' : 'default'} onClick={() => setConfigView('yaml')}>
+                        YAML 视图
+                      </Button>
+                    </Flex>
+                    {configView === 'visual' ? (isEditing ? <EditConfig draft={activeDraft} onPatch={patchEditDraft} /> : <PreviewConfig draft={activeDraft} />) : null}
+                    {configView === 'yaml' ? <PreviewYaml value={activeDraft.yaml} /> : null}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </div>
-          {detailTab === 'pods' ? (
-            <TableBottomPagination
-              current={podPagination.current}
-              pageSize={podPagination.pageSize}
-              total={allPods.length}
-              pageSizeOptions={paginationOptions}
-              onChange={(page, pageSize) => setPodPagination({ current: page, pageSize })}
-            />
-          ) : null}
+              {detailTab === 'pods' ? (
+                <TableBottomPagination
+                  current={podPagination.current}
+                  pageSize={podPagination.pageSize}
+                  total={allPods.length}
+                  pageSizeOptions={paginationOptions}
+                  onChange={(page, pageSize) => setPodPagination({ current: page, pageSize })}
+                />
+              ) : null}
+            </>
+          )}
         </Card>
       </div>
+
+      <Modal
+        open={createModalOpen}
+        title="创建业务实例"
+        okText="创建并编辑"
+        cancelText="取消"
+        onOk={() => void handleCreateInstance()}
+        confirmLoading={createSubmitting}
+        onCancel={() => setCreateModalOpen(false)}
+        destroyOnClose
+      >
+        <Form<CreateInstanceFormValues>
+          form={createForm}
+          layout="vertical"
+          initialValues={{ env: activeInstance?.env ?? 'dev', template: 'blank' }}
+        >
+          <Form.Item
+            name="name"
+            label="实例名称"
+            rules={[
+              { required: true, message: '请输入实例名称' },
+              { min: 2, max: 64, message: '长度需在 2 到 64 之间' },
+            ]}
+          >
+            <Input placeholder="例如：inst-api-dev" />
+          </Form.Item>
+          <Form.Item name="env" label="环境" rules={[{ required: true, message: '请选择环境' }]}>
+            <Select
+              options={[
+                { label: '开发', value: 'dev' },
+                { label: '测试', value: 'test' },
+                { label: '灰度', value: 'gray' },
+                { label: '生产', value: 'prod' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="template" label="初始化模板">
+            <Radio.Group
+              options={[
+                { label: '空白模板', value: 'blank' },
+                { label: 'Web 服务模板', value: 'web' },
+                { label: 'Worker 模板', value: 'worker' },
+              ]}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Modal
         open={podDialog !== null}
