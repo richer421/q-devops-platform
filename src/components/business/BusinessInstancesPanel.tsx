@@ -1505,13 +1505,18 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
 
   const envFilterOptions = useMemo(() => {
     const knownOrder = ['dev', 'test', 'gray', 'prod'];
+    const envLabelMap: Record<string, string> = {
+      dev: '开发',
+      test: '测试',
+      gray: '灰度',
+      prod: '生产',
+    };
     const set = new Set(instanceItems.map((item) => item.env.toLowerCase()));
-    const ordered = knownOrder.filter((env) => set.has(env));
     const rest = Array.from(set).filter((env) => !knownOrder.includes(env));
-    const values = [...ordered, ...rest];
+    const values = [...knownOrder, ...rest];
     return [
       { label: '全部环境', value: 'all' },
-      ...values.map((env) => ({ label: env.toUpperCase(), value: env })),
+      ...values.map((env) => ({ label: envLabelMap[env] ?? env, value: env })),
     ];
   }, [instanceItems]);
 

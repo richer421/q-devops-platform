@@ -94,7 +94,10 @@ describe('business instances panel', () => {
     render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
 
     fireEvent.mouseDown(screen.getByText('全部环境'));
-    fireEvent.click(await screen.findByText('PROD'));
+    const prodCandidates = await screen.findAllByText('生产');
+    const prodOption = prodCandidates.find((element) => element.classList.contains('ant-select-item-option-content'));
+    expect(prodOption).toBeDefined();
+    fireEvent.click(prodOption!);
 
     expect(screen.getAllByText('inst-api-prod').length).toBeGreaterThan(0);
     expect(screen.queryByText('inst-api-dev')).toBeNull();
