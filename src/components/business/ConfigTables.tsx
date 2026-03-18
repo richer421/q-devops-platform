@@ -1,6 +1,6 @@
-import { Empty, Input, Table, Tag, Typography } from 'antd';
+import { Button, Empty, Input, Select, Space, Table, Tag, Typography } from 'antd';
 import type { GetProp, TableProps } from 'antd';
-import { Search } from 'lucide-react';
+import { Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { CDConfig, CIConfig, Instance } from '../../mock';
 import { getInstanceStatusMeta } from '../../lib/status';
@@ -15,6 +15,23 @@ type CIConfigsTableProps = {
 
 type CDConfigsTableProps = {
   configs: ReadonlyArray<CDConfig>;
+  keyword: string;
+  releaseRegion: string;
+  releaseEnv: string;
+  deploymentMode: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  loading?: boolean;
+  onKeywordChange: (value: string) => void;
+  onReleaseRegionChange: (value: string) => void;
+  onReleaseEnvChange: (value: string) => void;
+  onDeploymentModeChange: (value: string) => void;
+  onPageChange: (page: number, pageSize: number) => void;
+  onCreate: () => void;
+  onDetail: (config: CDConfig) => void;
+  onEdit: (config: CDConfig) => void;
+  onDelete: (config: CDConfig) => void;
 };
 
 type InstancesTableProps = {
@@ -203,43 +220,26 @@ export function CIConfigsTable({ configs }: CIConfigsTableProps) {
   );
 }
 
-export function CDConfigsTable({ configs }: CDConfigsTableProps) {
-  const [keyword, setKeyword] = useState('');
-  const [tableParams, setTableParams] = useState<LocalTableParams>(createDefaultTableParams);
-
-  const filteredConfigs = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
-
-    if (!normalizedKeyword) {
-      return [...configs];
-    }
-
-    return configs.filter((config) =>
-      [
-        config.name,
-        config.renderEngine,
-        config.releaseMode,
-        config.gitOpsRepo,
-      ].some((value) => String(value).toLowerCase().includes(normalizedKeyword)),
-    );
-  }, [configs, keyword]);
-
-  const dataSource = useMemo(
-    () => getPagedItems(filteredConfigs, tableParams),
-    [filteredConfigs, tableParams],
-  );
-
-  useEffect(() => {
-    setTableParams((current) => ({
-      ...current,
-      pagination: {
-        ...current.pagination,
-        current: 1,
-        total: filteredConfigs.length,
-      },
-    }));
-  }, [filteredConfigs.length, keyword]);
-
+export function CDConfigsTable({
+  configs,
+  keyword,
+  releaseRegion,
+  releaseEnv,
+  deploymentMode,
+  page,
+  pageSize,
+  total,
+  loading = false,
+  onKeywordChange,
+  onReleaseRegionChange,
+  onReleaseEnvChange,
+  onDeploymentModeChange,
+  onPageChange,
+  onCreate,
+  onDetail,
+  onEdit,
+  onDelete,
+}: CDConfigsTableProps) {
   const columns: ColumnsType<CDConfig> = useMemo(
     () => [
       {
@@ -253,22 +253,49 @@ export function CDConfigsTable({ configs }: CDConfigsTableProps) {
           </Typography.Text>
         ),
       },
-      { title: '渲染引擎', dataIndex: 'renderEngine', key: 'renderEngine', width: 120 },
-      { title: '发布策略', dataIndex: 'releaseMode', key: 'releaseMode', width: 120 },
+      { title: '发布区域', dataIndex: 'releaseRegion', key: 'releaseRegion', width: 120 },
+      { title: '发布环境', dataIndex: 'releaseEnv', key: 'releaseEnv', width: 120 },
+      { title: '发布策略', dataIndex: 'deploymentMode', key: 'deploymentMode', width: 120 },
       {
-        title: 'GitOps 仓库',
-        dataIndex: 'gitOpsRepo',
-        key: 'gitOpsRepo',
-        width: 300,
+        title: '策略摘要',
+        dataIndex: 'strategySummary',
+        key: 'strategySummary',
+        width: 260,
         ellipsis: { showTitle: false },
         render: (value) => (
-          <Typography.Text ellipsis={{ tooltip: String(value) }} style={{ maxWidth: 300 }}>
+          <Typography.Text ellipsis={{ tooltip: String(value) }} style={{ maxWidth: 260 }}>
             {String(value)}
           </Typography.Text>
         ),
       },
+      {
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        key: 'updatedAt',
+        width: 180,
+        render: (value) => value || '-',
+      },
+      {
+        title: '操作',
+        key: 'action',
+        align: 'center',
+        width: 180,
+        render: (_, record) => (
+          <Space size={4}>
+            <Button size="small" type="link" icon={<Eye size={14} />} onClick={() => onDetail(record)}>
+              详情
+            </Button>
+            <Button size="small" type="link" icon={<Pencil size={14} />} onClick={() => onEdit(record)}>
+              编辑
+            </Button>
+            <Button size="small" type="link" danger icon={<Trash2 size={14} />} onClick={() => onDelete(record)}>
+              删除
+            </Button>
+          </Space>
+        ),
+      },
     ],
-    [],
+    [onDelete, onDetail, onEdit],
   );
 
   return (
@@ -284,25 +311,71 @@ export function CDConfigsTable({ configs }: CDConfigsTableProps) {
       }}
     >
       <div style={{ padding: 16, borderBottom: '1px solid #e5e6eb', flexShrink: 0 }}>
-        <Input
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
-          placeholder="搜索 CD 配置"
-          prefix={<Search size={14} />}
-          style={{ width: 280 }}
-          allowClear
-        />
+        <Space wrap size={12}>
+          <Input
+            value={keyword}
+            onChange={(event) => onKeywordChange(event.target.value)}
+            placeholder="搜索 CD 配置"
+            prefix={<Search size={14} />}
+            style={{ width: 240 }}
+            allowClear
+          />
+          <Select
+            value={releaseRegion}
+            onChange={onReleaseRegionChange}
+            style={{ width: 140 }}
+            options={[
+              { value: '全部', label: '全部区域' },
+              { value: '华东', label: '华东' },
+              { value: '华北', label: '华北' },
+              { value: '新加坡', label: '新加坡' },
+            ]}
+          />
+          <Select
+            value={releaseEnv}
+            onChange={onReleaseEnvChange}
+            style={{ width: 140 }}
+            options={[
+              { value: '全部', label: '全部环境' },
+              { value: '开发', label: '开发' },
+              { value: '测试', label: '测试' },
+              { value: '灰度', label: '灰度' },
+              { value: '生产', label: '生产' },
+            ]}
+          />
+          <Select
+            value={deploymentMode}
+            onChange={onDeploymentModeChange}
+            style={{ width: 140 }}
+            options={[
+              { value: '全部', label: '全部策略' },
+              { value: '滚动发布', label: '滚动发布' },
+              { value: '金丝雀发布', label: '金丝雀发布' },
+            ]}
+          />
+          <Button type="primary" icon={<Plus size={14} />} onClick={onCreate}>
+            新建 CD 配置
+          </Button>
+        </Space>
       </div>
       <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
         <Table<CDConfig>
           rowKey={(record) => record.id}
           columns={columns}
-          dataSource={dataSource}
-          pagination={tableParams.pagination}
+          dataSource={configs}
+          loading={loading}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 25, 50, 100],
+            position: ['bottomCenter'],
+          }}
           scroll={{ x: 960 }}
           size="middle"
           locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 CD 配置" /> }}
-          onChange={createTableChangeHandler<CDConfig>(filteredConfigs.length, setTableParams)}
+          onChange={(pagination) => onPageChange(pagination.current ?? 1, pagination.pageSize ?? 10)}
         />
       </div>
       <style>{`

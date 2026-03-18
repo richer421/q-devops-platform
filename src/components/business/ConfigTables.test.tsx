@@ -29,16 +29,35 @@ describe('config tables', () => {
             id: 'cd-001',
             buId: 'bu-001',
             name: 'cd-api-server-dev',
-            renderEngine: 'Helm',
-            releaseMode: 'rolling',
-            gitOpsRepo: 'gitops.example.io/api-server/dev',
+            releaseRegion: '华东',
+            releaseEnv: '开发',
+            deploymentMode: '滚动发布',
+            strategySummary: '滚动发布（默认策略）',
           },
         ]}
+        keyword=""
+        releaseRegion="全部"
+        releaseEnv="全部"
+        deploymentMode="全部"
+        page={1}
+        pageSize={10}
+        total={1}
+        onKeywordChange={() => {}}
+        onReleaseRegionChange={() => {}}
+        onReleaseEnvChange={() => {}}
+        onDeploymentModeChange={() => {}}
+        onPageChange={() => {}}
+        onCreate={() => {}}
+        onDetail={() => {}}
+        onEdit={() => {}}
+        onDelete={() => {}}
       />,
     );
 
-    expect(await screen.findByRole('columnheader', { name: 'GitOps 仓库' })).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: '发布区域' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '策略摘要' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('搜索 CD 配置')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /新建 CD 配置/i })).toBeInTheDocument();
   });
 
   it('renders instance table with right-aligned numeric columns', async () => {
@@ -89,11 +108,28 @@ describe('config tables', () => {
             id: 'cd-001',
             buId: 'bu-001',
             name: 'cd-api-server-dev',
-            renderEngine: 'Helm',
-            releaseMode: 'rolling',
-            gitOpsRepo: 'gitops.example.io/api-server/dev',
+            releaseRegion: '华东',
+            releaseEnv: '开发',
+            deploymentMode: '滚动发布',
+            strategySummary: '滚动发布（默认策略）',
           },
         ]}
+        keyword=""
+        releaseRegion="全部"
+        releaseEnv="全部"
+        deploymentMode="全部"
+        page={1}
+        pageSize={10}
+        total={1}
+        onKeywordChange={() => {}}
+        onReleaseRegionChange={() => {}}
+        onReleaseEnvChange={() => {}}
+        onDeploymentModeChange={() => {}}
+        onPageChange={() => {}}
+        onCreate={() => {}}
+        onDetail={() => {}}
+        onEdit={() => {}}
+        onDelete={() => {}}
       />,
     );
     const { container: instanceContainer } = render(
@@ -134,9 +170,10 @@ describe('config tables', () => {
       id: `cd-${index + 1}`,
       buId: 'bu-001',
       name: `cd-${index + 1}`,
-      renderEngine: 'Helm',
-      releaseMode: 'rolling',
-      gitOpsRepo: `gitops.example.io/service-${index + 1}`,
+      releaseRegion: '华东' as const,
+      releaseEnv: '开发' as const,
+      deploymentMode: '滚动发布' as const,
+      strategySummary: '滚动发布（默认策略）',
     }));
     const manyInstances = Array.from({ length: 12 }, (_, index) => ({
       id: `inst-${index + 1}`,
@@ -152,7 +189,27 @@ describe('config tables', () => {
     }));
 
     const { container: ciContainer } = render(<CIConfigsTable configs={manyCiConfigs} />);
-    const { container: cdContainer } = render(<CDConfigsTable configs={manyCdConfigs} />);
+    const { container: cdContainer } = render(
+      <CDConfigsTable
+        configs={manyCdConfigs}
+        keyword=""
+        releaseRegion="全部"
+        releaseEnv="全部"
+        deploymentMode="全部"
+        page={1}
+        pageSize={10}
+        total={12}
+        onKeywordChange={() => {}}
+        onReleaseRegionChange={() => {}}
+        onReleaseEnvChange={() => {}}
+        onDeploymentModeChange={() => {}}
+        onPageChange={() => {}}
+        onCreate={() => {}}
+        onDetail={() => {}}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
     const { container: instanceContainer } = render(<InstancesTable instances={manyInstances} />);
 
     expect(await screen.findByText('ci-10')).toBeInTheDocument();
