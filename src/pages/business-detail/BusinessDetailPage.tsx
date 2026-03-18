@@ -1,6 +1,6 @@
 import { Empty, Space, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { BusinessInstancesPanel } from '../../components/business/BusinessInstancesPanel';
 import { BusinessSummary } from '../../components/business/BusinessSummary';
 import { CDConfigsTable, CIConfigsTable } from '../../components/business/ConfigTables';
@@ -23,6 +23,7 @@ type DetailTab = 'plans' | 'ci' | 'cd' | 'instances';
 
 export function BusinessDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<DetailTab>('instances');
   const [businessInstances, setBusinessInstances] = useState<Instance[]>([]);
@@ -43,6 +44,14 @@ export function BusinessDetailPage() {
     return Number.isFinite(parsed) ? parsed : null;
   }, [id]);
 
+  const locationState = location.state as
+    | {
+        businessName?: string;
+        businessDescription?: string;
+        projectId?: number;
+      }
+    | undefined;
+
   const mockBusiness = useMemo(() => businesses.find((item) => item.id === id), [id]);
   const mockInstances = useMemo(
     () => (mockBusiness ? businessInstanceConfigs.filter((item) => item.buId === mockBusiness.id) : []),
@@ -56,14 +65,14 @@ export function BusinessDetailPage() {
     if (metahubBusinessUnitID) {
       return {
         id: String(metahubBusinessUnitID),
-        name: `业务单元 #${metahubBusinessUnitID}`,
-        desc: '来自 metahub',
+        name: locationState?.businessName ?? `业务单元 #${metahubBusinessUnitID}`,
+        desc: locationState?.businessDescription ?? '来自 metahub',
         repoUrl: '-',
         status: 'active',
       };
     }
     return undefined;
-  }, [metahubBusinessUnitID, mockBusiness]);
+  }, [locationState?.businessDescription, locationState?.businessName, metahubBusinessUnitID, mockBusiness]);
 
   const localFilteredInstances = useMemo(() => {
     const normalizedKeyword = instanceKeyword.trim().toLowerCase();

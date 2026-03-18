@@ -1,61 +1,146 @@
-import { Button } from 'antd';
+import { Button, message } from 'antd';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BusinessDeleteModal } from '../../components/business/BusinessDeleteModal';
 import { BusinessListPanel } from '../../components/business/BusinessListPanel';
 import { BusinessModal, type BusinessFormValue } from '../../components/business/BusinessModal';
+import type { BusinessTableRow } from '../../components/business/BusinessTable';
 import { BasePage } from '../../components/layout/page-container';
-import { businesses, type BusinessUnit } from '../../mock';
+import {
+  createBusinessUnit,
+  deleteBusinessUnit,
+  listBusinessUnits,
+  updateBusinessUnit,
+  type BusinessUnitRecord,
+} from '../../lib/metahub-business-unit';
+import { findProjectCatalogItem, projectCatalog } from '../../lib/project-catalog';
 
 const emptyBusinessForm: BusinessFormValue = {
   name: '',
   desc: '',
-  repoUrl: '',
+  projectId: projectCatalog[0]?.id ?? 0,
 };
 
 export function BusinessListPage() {
   const navigate = useNavigate();
-  const [list, setList] = useState<BusinessUnit[]>(() => [...businesses]);
+  const [list, setList] = useState<BusinessUnitRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   const editingBusiness = editingId ? list.find((item) => item.id === editingId) : undefined;
   const deletingBusiness = deletingId ? list.find((item) => item.id === deletingId) : undefined;
 
-  const handleCreate = (value: BusinessFormValue) => {
-    setList((prev) => [
-      {
-        id: `bu-${Date.now()}`,
+  const tableRows = useMemo<BusinessTableRow[]>(
+    () =>
+      list.map((item) => {
+        const project = findProjectCatalogItem(item.projectId);
+        return {
+          id: String(item.id),
+          name: item.name,
+          desc: item.description,
+          repoUrl: project?.repoUrl ?? '',
+          projectName: project?.name ?? '未知代码库',
+          projectId: item.projectId,
+          status: 'active',
+        };
+      }),
+    [list],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    void listBusinessUnits({
+      page,
+      pageSize,
+      keyword,
+    })
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setList(result.items);
+        setTotal(result.total);
+        setPage(result.page);
+        setPageSize(result.pageSize);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        console.error(error);
+        void message.error('业务单元列表加载失败');
+        setList([]);
+        setTotal(0);
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [keyword, page, pageSize, reloadToken]);
+
+  const handleCreate = async (value: BusinessFormValue) => {
+    try {
+      await createBusinessUnit({
         name: value.name,
-        desc: value.desc,
-        repoUrl: value.repoUrl,
-        status: 'active',
-      },
-      ...prev,
-    ]);
-    setCreateOpen(false);
+        description: value.desc,
+        projectId: value.projectId,
+      });
+      setCreateOpen(false);
+      setPage(1);
+      setReloadToken((current) => current + 1);
+    } catch (error) {
+      console.error(error);
+      void message.error('创建业务单元失败');
+    }
   };
 
-  const handleUpdate = (value: BusinessFormValue) => {
-    if (!editingId) {
+  const handleUpdate = async (value: BusinessFormValue) => {
+    if (!editingBusiness) {
       return;
     }
 
-    setList((prev) =>
-      prev.map((item) => (item.id === editingId ? { ...item, ...value } : item)),
-    );
-    setEditingId(null);
+    try {
+      await updateBusinessUnit(editingBusiness.id, {
+        name: value.name,
+        description: value.desc,
+      });
+      setEditingId(null);
+      setReloadToken((current) => current + 1);
+    } catch (error) {
+      console.error(error);
+      void message.error('更新业务单元失败');
+    }
   };
 
-  const handleDelete = () => {
-    if (!deletingId) {
+  const handleDelete = async () => {
+    if (!deletingBusiness) {
       return;
     }
 
-    setList((prev) => prev.filter((item) => item.id !== deletingId));
-    setDeletingId(null);
+    try {
+      await deleteBusinessUnit(deletingBusiness.id);
+      setDeletingId(null);
+      setReloadToken((current) => current + 1);
+    } catch (error) {
+      console.error(error);
+      void message.error(error instanceof Error ? error.message : '删除业务单元失败');
+    }
   };
 
   return (
@@ -72,16 +157,41 @@ export function BusinessListPage() {
         contentStyle={{ padding: 0 }}
       >
         <BusinessListPanel
-          businesses={list}
-          onOpenDetail={(id) => navigate(`/business/${id}`)}
-          onEdit={(id) => setEditingId(id)}
-          onDelete={(id) => setDeletingId(id)}
+          businesses={tableRows}
+          keyword={keyword}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          loading={loading}
+          onOpenDetail={(id) => {
+            const business = list.find((item) => String(item.id) === id);
+            navigate(`/business/${id}`, {
+              state: business
+                ? {
+                    businessName: business.name,
+                    businessDescription: business.description,
+                    projectId: business.projectId,
+                  }
+                : undefined,
+            });
+          }}
+          onEdit={(id) => setEditingId(Number(id))}
+          onDelete={(id) => setDeletingId(Number(id))}
+          onKeywordChange={(nextKeyword) => {
+            setKeyword(nextKeyword);
+            setPage(1);
+          }}
+          onPageChange={(nextPage, nextPageSize) => {
+            setPage(nextPage);
+            setPageSize(nextPageSize);
+          }}
         />
       </BasePage>
 
       {createOpen && (
         <BusinessModal
           title="新建业务单元"
+          mode="create"
           initialValue={emptyBusinessForm}
           onConfirm={handleCreate}
           onClose={() => setCreateOpen(false)}
@@ -91,10 +201,11 @@ export function BusinessListPage() {
       {editingBusiness && (
         <BusinessModal
           title="编辑业务单元"
+          mode="edit"
           initialValue={{
             name: editingBusiness.name,
-            desc: editingBusiness.desc,
-            repoUrl: editingBusiness.repoUrl,
+            desc: editingBusiness.description,
+            projectId: editingBusiness.projectId,
           }}
           onConfirm={handleUpdate}
           onClose={() => setEditingId(null)}

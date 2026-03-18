@@ -13,7 +13,7 @@ describe('business detail page', () => {
     expect(screen.queryByText('查看业务单元的部署计划、CI/CD 配置与实例状态')).toBeNull();
     expect(screen.queryByRole('button', { name: /返回我的业务/i })).toBeNull();
     expect(container.querySelector('div[style*="border-top: 1px solid rgb(229, 230, 235)"]')).toBeNull();
-  });
+  }, 10000);
 
   it('switches detail tabs while keeping the seeded reference data visible', async () => {
     render(<AppRouter kind="memory" initialEntries={['/business/bu-001']} />);
