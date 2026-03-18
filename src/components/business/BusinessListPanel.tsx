@@ -1,18 +1,31 @@
-import type { BusinessUnit } from '../../mock';
-import { BusinessTable } from './BusinessTable';
+import { BusinessTable, type BusinessTableRow } from './BusinessTable';
 
 type BusinessListPanelProps = {
-  businesses: BusinessUnit[];
+  businesses: BusinessTableRow[];
+  keyword: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  loading?: boolean;
   onOpenDetail: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onKeywordChange: (keyword: string) => void;
+  onPageChange: (page: number, pageSize: number) => void;
 };
 
 export function BusinessListPanel({
   businesses,
+  keyword,
+  page,
+  pageSize,
+  total,
+  loading = false,
   onOpenDetail,
   onEdit,
   onDelete,
+  onKeywordChange,
+  onPageChange,
 }: BusinessListPanelProps) {
   return (
     <div
@@ -33,9 +46,16 @@ export function BusinessListPanel({
       >
         <BusinessTable
           businesses={businesses}
+          keyword={keyword}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          loading={loading}
           onOpenDetail={onOpenDetail}
           onEdit={onEdit}
           onDelete={onDelete}
+          onKeywordChange={onKeywordChange}
+          onPageChange={onPageChange}
         />
       </div>
     </div>

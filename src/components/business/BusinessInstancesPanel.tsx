@@ -376,6 +376,17 @@ function deriveInstanceRuntimeStatus(instance: Instance): Instance['status'] {
   return 'degraded';
 }
 
+function getInstanceRuntimeStatusLabel(instance: Instance) {
+  const runtimeStatus = deriveInstanceRuntimeStatus(instance);
+  const statusMeta = getInstanceStatusMeta(runtimeStatus);
+
+  if ((instance.pods ?? []).length === 0) {
+    return '未运行';
+  }
+
+  return statusMeta.label;
+}
+
 function draftToInstance(draft: InstanceDraft, previous?: Instance): Instance {
   return {
     id: draft.id,
@@ -1882,8 +1893,7 @@ export function BusinessInstancesPanel({
               <List
                 dataSource={[...instances]}
                 renderItem={(instance) => {
-                  const runtimeStatus = deriveInstanceRuntimeStatus(instance);
-                  const statusMeta = getInstanceStatusMeta(runtimeStatus);
+                  const statusLabel = getInstanceRuntimeStatusLabel(instance);
                   const selected = activeInstance?.id === instance.id;
 
                   return (
@@ -1926,7 +1936,7 @@ export function BusinessInstancesPanel({
                                   borderRadius: 999,
                                 }}
                               >
-                                {statusMeta.label}
+                                {statusLabel}
                               </Tag>
                             </Flex>
                           </div>
