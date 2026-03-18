@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { stringify } from 'yaml';
+import type { CreateInstanceFromTemplatePayload, InstanceTemplate } from '../../lib/metahub-instance-oam';
 import type { Instance, InstancePod } from '../../mock';
 import { getInstanceStatusMeta } from '../../lib/status';
 import { EnvTag } from '../common/EnvTag';
@@ -13,8 +14,19 @@ import { PageHeaderTabs, type PageHeaderTabItem } from '../layout/page-header';
 
 type BusinessInstancesPanelProps = {
   instances: ReadonlyArray<Instance>;
-  onCreateInstance?: (instance: Instance) => Promise<Instance | void> | Instance | void;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  envFilter?: string;
+  loading?: boolean;
+  templates?: ReadonlyArray<InstanceTemplate>;
+  onPageChange?: (page: number, pageSize: number) => void;
+  onKeywordChange?: (value: string) => void;
+  onEnvFilterChange?: (value: string) => void;
+  onCreateInstance?: (payload: CreateInstanceFromTemplatePayload) => Promise<Instance | void> | Instance | void;
   onSaveInstance?: (instance: Instance) => Promise<Instance | void> | Instance | void;
+  onDeleteInstance?: (instance: Instance) => Promise<void> | void;
 };
 
 type DetailTab = 'pods' | 'config';
@@ -48,12 +60,10 @@ type InstanceDraft = {
 
 type PodDialogKind = 'events' | 'logs' | 'terminal' | 'yaml';
 
-type CreateTemplate = 'blank' | 'web' | 'worker';
-
 type CreateInstanceFormValues = {
   name: string;
   env: string;
-  template: CreateTemplate;
+  template: string;
 };
 
 type PodDialogState = {
@@ -352,6 +362,20 @@ function parseCpuValue(value: string): { amount: number | undefined; unit: 'm' |
   return { amount, unit: 'm' };
 }
 
+function deriveInstanceRuntimeStatus(instance: Instance): Instance['status'] {
+  const pods = instance.pods ?? [];
+
+  if (pods.length === 0) {
+    return 'stopped';
+  }
+
+  if (pods.every((pod) => pod.status === 'Running')) {
+    return 'running';
+  }
+
+  return 'degraded';
+}
+
 function draftToInstance(draft: InstanceDraft, previous?: Instance): Instance {
   return {
     id: draft.id,
@@ -399,55 +423,6 @@ function draftToInstance(draft: InstanceDraft, previous?: Instance): Instance {
     },
     pods: previous?.pods ?? [],
     status: previous?.status ?? 'stopped',
-  };
-}
-
-function buildTemplateDraft({
-  id,
-  buId,
-  name,
-  env,
-  template,
-}: {
-  id: string;
-  buId: string;
-  name: string;
-  env: string;
-  template: CreateTemplate;
-}): InstanceDraft {
-  const normalizedTemplate = template;
-  const isWeb = normalizedTemplate === 'web';
-  const isWorker = normalizedTemplate === 'worker';
-
-  const draft: InstanceDraft = {
-    id,
-    buId,
-    name,
-    env,
-    type: 'Deployment',
-    instanceType: 'deployment',
-    replicas: 1,
-    readyReplicas: 0,
-    cpu: isWorker ? '500m' : '250m',
-    memory: isWorker ? '512Mi' : '256Mi',
-    cpuLimit: isWorker ? '1000m' : '500m',
-    memoryLimit: isWorker ? '1Gi' : '512Mi',
-    startupCommand: isWorker ? 'python worker.py' : isWeb ? 'npm run start' : '',
-    networkMode: 'k8s-service',
-    status: 'stopped',
-    containerName: isWorker ? 'worker' : 'app',
-    image: 'IMAGE',
-    ports: isWeb ? [8080] : [],
-    envVars: [{ name: 'APP_ENV', value: env }],
-    configMaps: [],
-    secrets: [],
-    services: isWeb ? [name] : [],
-    yaml: '',
-  };
-
-  return {
-    ...draft,
-    yaml: serializeDraft(draft),
   };
 }
 
@@ -1335,9 +1310,57 @@ function PodsView({
     [expandedRowKeys, onOpenDialog],
   );
 
+  if (dataSource.length === 0) {
+    return (
+      <Card
+        styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } }}
+        style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `${podTableGrid.name}px ${podTableGrid.status}px ${podTableGrid.restart}px ${podTableGrid.podIP}px ${podTableGrid.node}px ${podTableGrid.actions}px`,
+            borderBottom: '1px solid #F2F3F5',
+            overflowX: 'auto',
+          }}
+        >
+          {['Pod 名称', '状态', '重启', 'Pod IP', '节点', '操作'].map((title) => (
+            <div
+              key={title}
+              style={{
+                padding: '12px 16px',
+                fontSize: 14,
+                fontWeight: 600,
+                color: '#1D2129',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {title}
+            </div>
+          ))}
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px 16px',
+          }}
+        >
+          <Empty description="暂无 Pod" />
+        </div>
+      </Card>
+    );
+  }
+
   return (
-    <Card styles={{ body: { padding: 0 } }}>
-      <div data-pod-table="true">
+    <Card
+      styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } }}
+      style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+    >
+      <div data-pod-table="true" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Table<PodTableRow>
           size="small"
           rowKey="key"
@@ -1345,7 +1368,7 @@ function PodsView({
           dataSource={dataSource}
           pagination={false}
           scroll={{ x: 822 }}
-          locale={{ emptyText: <Empty description="暂无 Pod" /> }}
+          locale={{ emptyText: null }}
           expandable={{
             expandedRowKeys,
             onExpandedRowsChange: (keys) => setExpandedRowKeys([...keys]),
@@ -1381,6 +1404,34 @@ function PodsView({
             padding: 0 !important;
           }
 
+          [data-pod-table='true'] .ant-table-wrapper,
+          [data-pod-table='true'] .ant-spin-nested-loading,
+          [data-pod-table='true'] .ant-spin-container,
+          [data-pod-table='true'] .ant-table,
+          [data-pod-table='true'] .ant-table-container {
+            height: 100%;
+          }
+
+          [data-pod-table='true'] .ant-table-wrapper,
+          [data-pod-table='true'] .ant-spin-nested-loading,
+          [data-pod-table='true'] .ant-spin-container,
+          [data-pod-table='true'] .ant-table,
+          [data-pod-table='true'] .ant-table-container,
+          [data-pod-table='true'] .ant-table-content {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1;
+          }
+
+          [data-pod-table='true'] .ant-table-content {
+            justify-content: stretch;
+          }
+
+          [data-pod-table='true'] .ant-table-body {
+            flex: 1;
+          }
+
           `}
         </style>
       </div>
@@ -1413,7 +1464,7 @@ function TableBottomPagination({
   );
 
   return (
-    <div data-bottom-pagination="true" style={{ marginTop: 'auto' }}>
+    <div data-bottom-pagination="true" style={{ marginTop: 'auto', paddingTop: 10, paddingBottom: 6 }}>
       <Table<PaginationRow>
         rowKey="key"
         columns={columns}
@@ -1468,16 +1519,27 @@ function TableBottomPagination({
   );
 }
 
-export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInstance }: BusinessInstancesPanelProps) {
+export function BusinessInstancesPanel({
+  instances,
+  total = instances.length,
+  page = 1,
+  pageSize = 10,
+  keyword = '',
+  envFilter = 'all',
+  loading = false,
+  templates = [],
+  onPageChange,
+  onKeywordChange,
+  onEnvFilterChange,
+  onCreateInstance,
+  onSaveInstance,
+  onDeleteInstance,
+}: BusinessInstancesPanelProps) {
   const paginationOptions = [10, 25, 50, 100];
-  const [instanceItems, setInstanceItems] = useState<Instance[]>(() => [...instances]);
   const [activeId, setActiveId] = useState<string | undefined>(instances[0]?.id);
   const [detailTab, setDetailTab] = useState<DetailTab>('pods');
   const [configView, setConfigView] = useState<ConfigView>('visual');
-  const [instancePagination, setInstancePagination] = useState({ current: 1, pageSize: 10 });
   const [podPagination, setPodPagination] = useState({ current: 1, pageSize: 10 });
-  const [instanceKeyword, setInstanceKeyword] = useState('');
-  const [instanceEnvFilter, setInstanceEnvFilter] = useState<string>('all');
   const [savedDrafts, setSavedDrafts] = useState<Record<string, InstanceDraft>>(() =>
     Object.fromEntries(instances.map((item) => [item.id, buildDraft(item)])),
   );
@@ -1485,23 +1547,28 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
   const [editingId, setEditingId] = useState<string | null>(null);
   const [podDialog, setPodDialog] = useState<PodDialogState>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [saveSubmitting, setSaveSubmitting] = useState(false);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [createForm] = Form.useForm<CreateInstanceFormValues>();
-  const instancePaginationCurrent = instancePagination.current;
-  const instancePaginationPageSize = instancePagination.pageSize;
-
-  const instanceIdsSignature = useMemo(() => instances.map((item) => item.id).join('|'), [instances]);
 
   useEffect(() => {
-    setInstanceItems([...instances]);
-    setSavedDrafts(Object.fromEntries(instances.map((item) => [item.id, buildDraft(item)])));
-    setEditDrafts({});
-    setEditingId(null);
-    setActiveId(instances[0]?.id);
-    setInstancePagination((current) => ({ ...current, current: 1 }));
-    setPodPagination((current) => ({ ...current, current: 1 }));
-  }, [instanceIdsSignature, instances]);
+    const nextSavedDrafts = Object.fromEntries(instances.map((item) => [item.id, buildDraft(item)]));
+    setSavedDrafts(nextSavedDrafts);
+    setEditDrafts((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([instanceID]) => nextSavedDrafts[instanceID]),
+      ),
+    );
+    setEditingId((current) => (current && nextSavedDrafts[current] ? current : null));
+    setActiveId((current) => {
+      if (current && nextSavedDrafts[current]) {
+        return current;
+      }
+      return instances[0]?.id;
+    });
+  }, [instances]);
 
   const envFilterOptions = useMemo(() => {
     const knownOrder = ['dev', 'test', 'gray', 'prod'];
@@ -1511,50 +1578,28 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
       gray: '灰度',
       prod: '生产',
     };
-    const set = new Set(instanceItems.map((item) => item.env.toLowerCase()));
+    const set = new Set(instances.map((item) => item.env.toLowerCase()));
     const rest = Array.from(set).filter((env) => !knownOrder.includes(env));
     const values = [...knownOrder, ...rest];
     return [
       { label: '全部环境', value: 'all' },
       ...values.map((env) => ({ label: envLabelMap[env] ?? env, value: env })),
     ];
-  }, [instanceItems]);
-
-  const filteredInstances = useMemo(() => {
-    const normalizedKeyword = instanceKeyword.trim().toLowerCase();
-
-    return instanceItems.filter((item) => {
-      const matchedEnv = instanceEnvFilter === 'all' || item.env.toLowerCase() === instanceEnvFilter.toLowerCase();
-      if (!matchedEnv) {
-        return false;
-      }
-      if (!normalizedKeyword) {
-        return true;
-      }
-      return item.name.toLowerCase().includes(normalizedKeyword);
-    });
-  }, [instanceEnvFilter, instanceItems, instanceKeyword]);
+  }, [instances]);
 
   useEffect(() => {
-    if (filteredInstances.length === 0) {
+    if (instances.length === 0) {
       setActiveId(undefined);
       return;
     }
-    if (!activeId || !filteredInstances.some((item) => item.id === activeId)) {
-      setActiveId(filteredInstances[0].id);
+    if (!activeId || !instances.some((item) => item.id === activeId)) {
+      setActiveId(instances[0].id);
     }
-  }, [activeId, filteredInstances]);
-
-  useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(filteredInstances.length / instancePaginationPageSize));
-    if (instancePaginationCurrent > maxPage) {
-      setInstancePagination((current) => ({ ...current, current: maxPage }));
-    }
-  }, [filteredInstances.length, instancePaginationCurrent, instancePaginationPageSize]);
+  }, [activeId, instances]);
 
   const activeInstance = useMemo(
-    () => instanceItems.find((item) => item.id === activeId),
-    [activeId, instanceItems],
+    () => instances.find((item) => item.id === activeId),
+    [activeId, instances],
   );
   const detailTabItems: ReadonlyArray<PageHeaderTabItem<DetailTab>> = useMemo(
     () => [
@@ -1569,14 +1614,6 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
   const activeDraft = activeInstance && activeSavedDraft
     ? (isEditing ? editDrafts[activeInstance.id] ?? activeSavedDraft : activeSavedDraft)
     : undefined;
-  const pagedInstances = useMemo(
-    () =>
-      filteredInstances.slice(
-        (instancePagination.current - 1) * instancePagination.pageSize,
-        instancePagination.current * instancePagination.pageSize,
-      ),
-    [filteredInstances, instancePagination],
-  );
   const allPods = useMemo(() => activeInstance?.pods ?? [], [activeInstance]);
   const pagedPods = useMemo(
     () =>
@@ -1666,9 +1703,6 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
         }
       }
 
-      setInstanceItems((current) =>
-        current.map((item) => (item.id === activeInstance.id ? nextInstance : item)),
-      );
       setSavedDrafts((current) => ({
         ...current,
         [activeInstance.id]: buildDraft(nextInstance),
@@ -1679,8 +1713,8 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
         delete next[activeInstance.id];
         return next;
       });
-    } catch (error) {
-      console.error(error);
+    } catch {
+      return;
     } finally {
       setSaveSubmitting(false);
     }
@@ -1698,7 +1732,7 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
     createForm.setFieldsValue({
       name: '',
       env: activeInstance?.env ?? 'dev',
-      template: 'blank',
+      template: templates[0]?.key ?? '',
     });
     setCreateModalOpen(true);
   };
@@ -1707,26 +1741,25 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
     try {
       const values = await createForm.validateFields();
       setCreateSubmitting(true);
-
-      const nextId = `inst-${Date.now()}`;
-      const nextDraft = buildTemplateDraft({
-        id: nextId,
-        buId: activeInstance?.buId ?? instanceItems[0]?.buId ?? '',
-        name: values.name.trim(),
-        env: values.env,
-        template: values.template,
-      });
-      let nextInstance = draftToInstance(nextDraft);
+      let nextInstance: Instance | undefined;
 
       if (onCreateInstance) {
-        const remoteInstance = await onCreateInstance(nextInstance);
+        const remoteInstance = await onCreateInstance({
+          name: values.name.trim(),
+          env: values.env,
+          templateKey: values.template,
+        });
         if (remoteInstance) {
           nextInstance = remoteInstance;
         }
       }
 
+      if (!nextInstance) {
+        setCreateModalOpen(false);
+        return;
+      }
+
       const persistedDraft = buildDraft(nextInstance);
-      setInstanceItems((current) => [nextInstance, ...current]);
       setSavedDrafts((current) => ({
         ...current,
         [nextInstance.id]: persistedDraft,
@@ -1739,20 +1772,53 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
       setEditingId(nextInstance.id);
       setDetailTab('config');
       setConfigView('visual');
-      setInstancePagination((current) => ({ ...current, current: 1 }));
       setCreateModalOpen(false);
     } catch (error) {
       const maybeFormError = error as { errorFields?: unknown };
       if (maybeFormError.errorFields) {
         return;
       }
-      console.error(error);
+      return;
     } finally {
       setCreateSubmitting(false);
     }
   };
 
+  const handleDeleteInstance = async () => {
+    if (!activeInstance || !onDeleteInstance) {
+      setDeleteModalOpen(false);
+      return;
+    }
+
+    try {
+      setDeleteSubmitting(true);
+      await onDeleteInstance(activeInstance);
+      setDeleteModalOpen(false);
+      setEditingId(null);
+      setEditDrafts((current) => {
+        const next = { ...current };
+        delete next[activeInstance.id];
+        return next;
+      });
+      setActiveId(undefined);
+      setDetailTab('pods');
+      setConfigView('visual');
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  };
+
+  const requestDeleteInstance = (instanceID: string) => {
+    setActiveId(instanceID);
+    setDeleteModalOpen(true);
+  };
+
   const canEdit = detailTab === 'config' && Boolean(activeDraft);
+  const templateOptions = templates.map((item) => ({
+    label: item.name,
+    value: item.key,
+    title: item.description,
+  }));
 
   return (
     <>
@@ -1771,10 +1837,17 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
         <Card
           title="业务实例"
           extra={(
-            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+            <Button
+              size="small"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleOpenCreateModal}
+              disabled={!onCreateInstance || templates.length === 0}
+            >
               创建实例
             </Button>
           )}
+          loading={loading}
           styles={{
             header: { paddingInline: 16 },
             body: { padding: 8, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' },
@@ -1785,33 +1858,32 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
             <Flex gap={8} align="center">
               <Select
                 style={{ width: 118 }}
-                value={instanceEnvFilter}
+                value={envFilter}
                 options={envFilterOptions}
                 onChange={(value) => {
-                  setInstanceEnvFilter(value);
-                  setInstancePagination((current) => ({ ...current, current: 1 }));
+                  onEnvFilterChange?.(value);
                 }}
+                disabled={loading}
               />
               <Input
-                value={instanceKeyword}
+                value={keyword}
                 allowClear
                 placeholder="名称模糊匹配"
                 prefix={<SearchOutlined />}
-                onChange={(event) => {
-                  setInstanceKeyword(event.target.value);
-                  setInstancePagination((current) => ({ ...current, current: 1 }));
-                }}
+                onChange={(event) => onKeywordChange?.(event.target.value)}
+                disabled={loading}
               />
             </Flex>
           </div>
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-            {filteredInstances.length === 0 ? (
+            {instances.length === 0 ? (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无匹配实例" />
             ) : (
               <List
-                dataSource={[...pagedInstances]}
+                dataSource={[...instances]}
                 renderItem={(instance) => {
-                  const statusMeta = getInstanceStatusMeta(instance.status);
+                  const runtimeStatus = deriveInstanceRuntimeStatus(instance);
+                  const statusMeta = getInstanceStatusMeta(runtimeStatus);
                   const selected = activeInstance?.id === instance.id;
 
                   return (
@@ -1852,14 +1924,28 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
                                   margin: 0,
                                   border: 'none',
                                   borderRadius: 999,
-                                  background: statusMeta.badgeClass.includes('#') ? '#E8FFEA' : undefined,
                                 }}
-                                color={instance.status === 'running' ? 'success' : instance.status === 'degraded' ? 'warning' : 'default'}
                               >
                                 {statusMeta.label}
                               </Tag>
                             </Flex>
                           </div>
+                          {selected && onDeleteInstance ? (
+                            <Button
+                              size="small"
+                              danger
+                              type="text"
+                              icon={<DeleteOutlined />}
+                              aria-label={`删除实例 ${instance.name}`}
+                              disabled={deleteSubmitting || saveSubmitting}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                requestDeleteInstance(instance.id);
+                              }}
+                            >
+                              删除
+                            </Button>
+                          ) : null}
                         </Flex>
                       </div>
                     </List.Item>
@@ -1869,11 +1955,11 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
             )}
           </div>
           <TableBottomPagination
-            current={instancePagination.current}
-            pageSize={instancePagination.pageSize}
-            total={filteredInstances.length}
+            current={page}
+            pageSize={pageSize}
+            total={total}
             pageSizeOptions={paginationOptions}
-            onChange={(page, pageSize) => setInstancePagination({ current: page, pageSize })}
+            onChange={(nextPage, nextPageSize) => onPageChange?.(nextPage, nextPageSize)}
           />
         </Card>
 
@@ -1891,17 +1977,19 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
               {canEdit ? (
                 isEditing ? (
                   <>
-                    <Button size="small" onClick={cancelEdit} disabled={saveSubmitting}>
+                    <Button size="small" onClick={cancelEdit} disabled={saveSubmitting || deleteSubmitting}>
                       取消
                     </Button>
-                    <Button size="small" type="primary" onClick={() => void saveEdit()} loading={saveSubmitting}>
+                    <Button size="small" type="primary" onClick={() => void saveEdit()} loading={saveSubmitting} disabled={deleteSubmitting}>
                       保存
                     </Button>
                   </>
                 ) : (
-                  <Button size="small" type="primary" onClick={startEdit}>
-                    编辑
-                  </Button>
+                  <>
+                    <Button size="small" type="primary" onClick={startEdit} disabled={deleteSubmitting}>
+                      编辑
+                    </Button>
+                  </>
                 )
               ) : null}
             </Flex>
@@ -1911,23 +1999,25 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
         >
           {!activeDraft ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Empty description={instanceItems.length === 0 ? '暂无业务实例，请先创建' : '当前筛选条件下无可展示实例'} />
+              <Empty description={instances.length === 0 ? '暂无业务实例，请先创建' : '当前筛选条件下无可展示实例'} />
             </div>
           ) : (
             <>
-              <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                <div style={{ paddingBottom: 6 }}>
-                  <PageHeaderTabs items={detailTabItems} value={detailTab} onChange={setDetailTab} right={<span />} />
-                </div>
+              <div style={{ paddingBottom: 6 }}>
+                <PageHeaderTabs items={detailTabItems} value={detailTab} onChange={setDetailTab} right={<span />} />
+              </div>
 
-                {detailTab === 'pods' ? (
+              {detailTab === 'pods' ? (
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   <PodsView
                     pods={pagedPods}
                     containerLimitLookup={containerLimitLookup}
                     onOpenDialog={(kind, title, content) => setPodDialog({ kind, title, content })}
                   />
-                ) : null}
-                {detailTab === 'config' ? (
+                </div>
+              ) : null}
+              {detailTab === 'config' ? (
+                <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <Flex align="center" gap={8}>
                       <Button size="small" type={configView === 'visual' ? 'primary' : 'default'} onClick={() => setConfigView('visual')}>
@@ -1940,8 +2030,8 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
                     {configView === 'visual' ? (isEditing ? <EditConfig draft={activeDraft} onPatch={patchEditDraft} /> : <PreviewConfig draft={activeDraft} />) : null}
                     {configView === 'yaml' ? <PreviewYaml value={activeDraft.yaml} /> : null}
                   </div>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
               {detailTab === 'pods' ? (
                 <TableBottomPagination
                   current={podPagination.current}
@@ -1969,7 +2059,7 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
         <Form<CreateInstanceFormValues>
           form={createForm}
           layout="vertical"
-          initialValues={{ env: activeInstance?.env ?? 'dev', template: 'blank' }}
+          initialValues={{ env: activeInstance?.env ?? 'dev', template: templates[0]?.key ?? '' }}
         >
           <Form.Item
             name="name"
@@ -1992,15 +2082,24 @@ export function BusinessInstancesPanel({ instances, onCreateInstance, onSaveInst
             />
           </Form.Item>
           <Form.Item name="template" label="初始化模板">
-            <Radio.Group
-              options={[
-                { label: '空白模板', value: 'blank' },
-                { label: 'Web 服务模板', value: 'web' },
-                { label: 'Worker 模板', value: 'worker' },
-              ]}
-            />
+            <Radio.Group options={templateOptions} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={deleteModalOpen}
+        title="删除业务实例"
+        okText="确认删除"
+        cancelText="取消"
+        okButtonProps={{ danger: true, loading: deleteSubmitting }}
+        onOk={() => void handleDeleteInstance()}
+        onCancel={() => setDeleteModalOpen(false)}
+        destroyOnClose
+      >
+        <Typography.Paragraph style={{ marginBottom: 0 }}>
+          确定删除实例 <Typography.Text strong>{activeInstance?.name ?? '-'}</Typography.Text> 吗？该操作不可撤销。
+        </Typography.Paragraph>
       </Modal>
 
       <Modal

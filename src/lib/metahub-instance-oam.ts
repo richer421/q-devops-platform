@@ -16,12 +16,67 @@ type MetahubInstanceOAMDTO = {
   frontend_payload: Record<string, unknown>;
 };
 
-type UpsertInstanceOAMPayload = {
+type MetahubInstanceOAMPageDTO = {
+  items: MetahubInstanceOAMDTO[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type InstanceListFilters = {
+  env?: string;
+  keyword?: string;
+  page: number;
+  pageSize: number;
+};
+
+export type InstanceListPage = {
+  items: Instance[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type InstanceTemplate = {
+  key: string;
+  name: string;
+  description: string;
+  replicas: number;
+  cpuRequest: string;
+  cpuLimit: string;
+  memoryRequest: string;
+  memoryLimit: string;
+};
+
+export type CreateInstanceFromTemplatePayload = {
+  name: string;
+  env: string;
+  templateKey: string;
+};
+
+type CreateInstanceOAMFromTemplateRequest = {
+  name: string;
+  env: string;
+  template_key: string;
+};
+
+type UpdateInstanceOAMPayload = {
   name: string;
   env: string;
   schema_version: string;
   oam_application: Record<string, unknown>;
   frontend_payload: Record<string, unknown>;
+};
+
+type MetahubInstanceOAMTemplateDTO = {
+  key: string;
+  name: string;
+  description: string;
+  replicas: number;
+  cpu_request: string;
+  cpu_limit: string;
+  memory_request: string;
+  memory_limit: string;
 };
 
 const METAHUB_BASE_URL = (import.meta.env.VITE_METAHUB_BASE_URL as string | undefined)?.trim() ?? '';
@@ -89,7 +144,7 @@ export function instanceFromMetahub(dto: MetahubInstanceOAMDTO): Instance {
   );
 }
 
-export function instanceToMetahubPayload(instance: Instance): UpsertInstanceOAMPayload {
+export function instanceToMetahubPayload(instance: Instance): UpdateInstanceOAMPayload {
   return {
     name: instance.name,
     env: instance.env,
@@ -117,30 +172,60 @@ export function instanceToMetahubPayload(instance: Instance): UpsertInstanceOAMP
   };
 }
 
+function toTemplate(dto: MetahubInstanceOAMTemplateDTO): InstanceTemplate {
+  return {
+    key: dto.key,
+    name: dto.name,
+    description: dto.description,
+    replicas: dto.replicas,
+    cpuRequest: dto.cpu_request,
+    cpuLimit: dto.cpu_limit,
+    memoryRequest: dto.memory_request,
+    memoryLimit: dto.memory_limit,
+  };
+}
+
+export async function listInstanceOAMTemplates(): Promise<InstanceTemplate[]> {
+  const rows = await request<MetahubInstanceOAMTemplateDTO[]>('/api/v1/instance-oam-templates');
+  return rows.map(toTemplate);
+}
+
 export async function listBusinessUnitInstanceOAMs(
   businessUnitID: number,
-  filters?: { env?: string; keyword?: string },
-): Promise<Instance[]> {
+  filters: InstanceListFilters,
+): Promise<InstanceListPage> {
   const query = new URLSearchParams();
-  if (filters?.env) {
+  query.set('page', String(filters.page));
+  query.set('page_size', String(filters.pageSize));
+  if (filters.env && filters.env !== 'all') {
     query.set('env', filters.env);
   }
-  if (filters?.keyword) {
-    query.set('keyword', filters.keyword);
+  if (filters.keyword?.trim()) {
+    query.set('keyword', filters.keyword.trim());
   }
-  const suffix = query.toString() ? `?${query.toString()}` : '';
-  const rows = await request<MetahubInstanceOAMDTO[]>(`/api/v1/business-units/${businessUnitID}/instance-oams${suffix}`);
-  return rows.map(instanceFromMetahub);
+
+  const dto = await request<MetahubInstanceOAMPageDTO>(`/api/v1/business-units/${businessUnitID}/instance-oams?${query.toString()}`);
+  return {
+    items: dto.items.map(instanceFromMetahub),
+    total: dto.total,
+    page: dto.page,
+    pageSize: dto.page_size,
+  };
 }
 
 export async function createBusinessUnitInstanceOAM(
   businessUnitID: number,
-  instance: Instance,
+  payload: CreateInstanceFromTemplatePayload,
 ): Promise<Instance> {
-  const payload = instanceToMetahubPayload(instance);
+  const requestBody: CreateInstanceOAMFromTemplateRequest = {
+    name: payload.name,
+    env: payload.env,
+    template_key: payload.templateKey,
+  };
+
   const row = await request<MetahubInstanceOAMDTO>(`/api/v1/business-units/${businessUnitID}/instance-oams`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(requestBody),
   });
   return instanceFromMetahub(row);
 }
@@ -157,4 +242,10 @@ export async function updateInstanceOAM(instance: Instance): Promise<Instance> {
     body: JSON.stringify(payload),
   });
   return instanceFromMetahub(row);
+}
+
+export async function deleteInstanceOAM(instanceID: number): Promise<void> {
+  await request<Record<string, never>>(`/api/v1/instance-oams/${instanceID}`, {
+    method: 'DELETE',
+  });
 }

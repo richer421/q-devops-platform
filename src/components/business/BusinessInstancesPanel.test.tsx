@@ -1,11 +1,84 @@
+import { useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { businessInstanceConfigs } from '../../mock';
+import { describe, expect, it, vi } from 'vitest';
+import { businessInstanceConfigs, type Instance } from '../../mock';
 import { BusinessInstancesPanel } from './BusinessInstancesPanel';
+
+const seedInstances = businessInstanceConfigs.filter((item) => item.buId === 'bu-001');
+
+function renderControlledPanel() {
+  function Harness() {
+    const [items, setItems] = useState<Instance[]>(seedInstances);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [keyword, setKeyword] = useState('');
+    const [envFilter, setEnvFilter] = useState('all');
+
+    const filteredItems = items.filter((item) => {
+      const matchedEnv = envFilter === 'all' || item.env === envFilter;
+      const matchedKeyword = keyword.trim() === '' || item.name.toLowerCase().includes(keyword.trim().toLowerCase());
+      return matchedEnv && matchedKeyword;
+    });
+    const pagedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
+
+    return (
+      <BusinessInstancesPanel
+        instances={pagedItems}
+        total={filteredItems.length}
+        page={page}
+        pageSize={pageSize}
+        keyword={keyword}
+        envFilter={envFilter}
+        templates={[
+          {
+            key: 'low_load',
+            name: '低负载业务',
+            description: 'test template',
+            replicas: 1,
+            cpuRequest: '250m',
+            cpuLimit: '500m',
+            memoryRequest: '256Mi',
+            memoryLimit: '512Mi',
+          },
+        ]}
+        onPageChange={(nextPage, nextPageSize) => {
+          setPage(nextPage);
+          setPageSize(nextPageSize);
+        }}
+        onKeywordChange={(value) => {
+          setKeyword(value);
+          setPage(1);
+        }}
+        onEnvFilterChange={(value) => {
+          setEnvFilter(value);
+          setPage(1);
+        }}
+        onCreateInstance={async (payload) => {
+          const created: Instance = {
+            ...seedInstances[0],
+            id: `inst-${payload.name}`,
+            name: payload.name,
+            env: payload.env,
+            pods: [],
+            readyReplicas: 0,
+            status: 'stopped',
+          };
+          setItems((current) => [created, ...current]);
+          setEnvFilter(payload.env);
+          setKeyword('');
+          setPage(1);
+          return created;
+        }}
+      />
+    );
+  }
+
+  render(<Harness />);
+}
 
 describe('business instances panel', () => {
   it('renders pod runtime view as the default detail content', async () => {
-    render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
+    render(<BusinessInstancesPanel instances={seedInstances} />);
 
     expect(screen.getByText('业务实例')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Pod' })).toHaveAttribute('aria-selected', 'true');
@@ -26,7 +99,7 @@ describe('business instances panel', () => {
   });
 
   it('expands pod containers and opens the logs dialog', async () => {
-    render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
+    render(<BusinessInstancesPanel instances={seedInstances} />);
 
     fireEvent.click(screen.getAllByRole('button', { name: '展开容器' })[0]);
 
@@ -73,7 +146,7 @@ describe('business instances panel', () => {
   });
 
   it('switches to config tab and saves the visual draft back to preview mode', async () => {
-    render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
+    render(<BusinessInstancesPanel instances={seedInstances} />);
 
     fireEvent.click(screen.getByRole('tab', { name: '配置' }));
     fireEvent.click(screen.getByRole('button', { name: /编\s*辑/ }));
@@ -91,7 +164,7 @@ describe('business instances panel', () => {
   }, 10000);
 
   it('filters instances by environment and fuzzy name', async () => {
-    render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
+    renderControlledPanel();
 
     fireEvent.mouseDown(screen.getByText('全部环境'));
     const prodCandidates = await screen.findAllByText('生产');
@@ -100,14 +173,14 @@ describe('business instances panel', () => {
     fireEvent.click(prodOption!);
 
     expect(screen.getAllByText('inst-api-prod').length).toBeGreaterThan(0);
-    expect(screen.queryByText('inst-api-dev')).toBeNull();
+    expect(screen.queryAllByText('inst-api-dev')).toHaveLength(0);
 
     fireEvent.change(screen.getByPlaceholderText('名称模糊匹配'), { target: { value: 'prod' } });
     expect(screen.getAllByText('inst-api-prod').length).toBeGreaterThan(0);
   });
 
   it('creates a new instance from modal and enters config edit mode', async () => {
-    render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
+    renderControlledPanel();
 
     fireEvent.click(screen.getByRole('button', { name: /创建实例/ }));
     fireEvent.change(screen.getByPlaceholderText('例如：inst-api-dev'), { target: { value: 'inst-api-gray' } });
@@ -118,8 +191,51 @@ describe('business instances panel', () => {
     expect(screen.getByRole('tab', { name: '配置' })).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('derives instance runtime status from pod states', () => {
+    const stoppedInstance: Instance = {
+      ...seedInstances[0],
+      id: 'inst-stopped',
+      name: 'inst-stopped',
+      pods: [],
+      status: 'running',
+    };
+    const degradedInstance: Instance = {
+      ...seedInstances[0],
+      id: 'inst-degraded',
+      name: 'inst-degraded',
+      pods: [
+        {
+          ...seedInstances[0].pods![0],
+          name: 'inst-degraded-pod-1',
+          status: 'CrashLoopBackOff',
+        },
+      ],
+      status: 'running',
+    };
+
+    render(<BusinessInstancesPanel instances={[stoppedInstance, degradedInstance]} />);
+
+    expect(screen.getAllByText('inst-stopped').length).toBeGreaterThan(0);
+    expect(screen.getByText('已停止')).toBeInTheDocument();
+    expect(screen.getAllByText('inst-degraded').length).toBeGreaterThan(0);
+    expect(screen.getByText('异常')).toBeInTheDocument();
+  });
+
+  it('shows delete action on the selected list item instead of the config header', async () => {
+    const onDeleteInstance = vi.fn(async () => {});
+    render(<BusinessInstancesPanel instances={seedInstances} onDeleteInstance={onDeleteInstance} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /删除实例 inst-api-dev/i }));
+    expect(await screen.findByText('删除业务实例')).toBeInTheDocument();
+    expect(screen.getByText(/确定删除实例/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+    expect(onDeleteInstance).toHaveBeenCalledTimes(1);
+    expect(onDeleteInstance).toHaveBeenCalledWith(expect.objectContaining({ id: seedInstances[0].id }));
+  });
+
   it('switches the active instance and opens pod yaml dialog', async () => {
-    render(<BusinessInstancesPanel instances={businessInstanceConfigs.filter((item) => item.buId === 'bu-001')} />);
+    render(<BusinessInstancesPanel instances={seedInstances} />);
 
     fireEvent.click(screen.getByRole('button', { name: /选择实例 inst-api-prod/i }));
     expect(screen.getAllByText('inst-api-prod')).toHaveLength(2);

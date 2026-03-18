@@ -1,15 +1,23 @@
-import { Empty, Space } from 'antd';
+import { Empty, Space, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { BusinessInstancesPanel } from '../../components/business/BusinessInstancesPanel';
 import { useNavigate, useParams } from 'react-router-dom';
+import { BusinessInstancesPanel } from '../../components/business/BusinessInstancesPanel';
 import { BusinessSummary } from '../../components/business/BusinessSummary';
 import { CDConfigsTable, CIConfigsTable } from '../../components/business/ConfigTables';
 import { DeployPlansTable } from '../../components/business/DeployPlansTable';
 import { BasePage } from '../../components/layout/page-container';
 import { PageHeaderTabs, type PageHeaderTabItem } from '../../components/layout/page-header';
+import {
+  createBusinessUnitInstanceOAM,
+  deleteInstanceOAM,
+  listBusinessUnitInstanceOAMs,
+  listInstanceOAMTemplates,
+  updateInstanceOAM,
+  type CreateInstanceFromTemplatePayload,
+  type InstanceTemplate,
+} from '../../lib/metahub-instance-oam';
 import type { BusinessUnit, Instance } from '../../mock';
 import { businessInstanceConfigs, businesses, cdConfigs, ciConfigs, deployPlans } from '../../mock';
-import { createBusinessUnitInstanceOAM, listBusinessUnitInstanceOAMs, updateInstanceOAM } from '../../lib/metahub-instance-oam';
 
 type DetailTab = 'plans' | 'ci' | 'cd' | 'instances';
 
@@ -18,6 +26,13 @@ export function BusinessDetailPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<DetailTab>('instances');
   const [businessInstances, setBusinessInstances] = useState<Instance[]>([]);
+  const [instanceTotal, setInstanceTotal] = useState(0);
+  const [instancePage, setInstancePage] = useState(1);
+  const [instancePageSize, setInstancePageSize] = useState(10);
+  const [instanceKeyword, setInstanceKeyword] = useState('');
+  const [instanceEnvFilter, setInstanceEnvFilter] = useState('all');
+  const [instanceTemplates, setInstanceTemplates] = useState<InstanceTemplate[]>([]);
+  const [instancesLoading, setInstancesLoading] = useState(false);
 
   const metahubBusinessUnitID = useMemo(() => {
     if (!id || !/^\d+$/.test(id)) {
@@ -29,6 +44,10 @@ export function BusinessDetailPage() {
   }, [id]);
 
   const mockBusiness = useMemo(() => businesses.find((item) => item.id === id), [id]);
+  const mockInstances = useMemo(
+    () => (mockBusiness ? businessInstanceConfigs.filter((item) => item.buId === mockBusiness.id) : []),
+    [mockBusiness],
+  );
 
   const business = useMemo<BusinessUnit | undefined>(() => {
     if (mockBusiness) {
@@ -46,13 +65,46 @@ export function BusinessDetailPage() {
     return undefined;
   }, [metahubBusinessUnitID, mockBusiness]);
 
+  const localFilteredInstances = useMemo(() => {
+    const normalizedKeyword = instanceKeyword.trim().toLowerCase();
+
+    return mockInstances.filter((item) => {
+      const matchedEnv = instanceEnvFilter === 'all' || item.env.toLowerCase() === instanceEnvFilter.toLowerCase();
+      if (!matchedEnv) {
+        return false;
+      }
+      if (!normalizedKeyword) {
+        return true;
+      }
+      return item.name.toLowerCase().includes(normalizedKeyword);
+    });
+  }, [instanceEnvFilter, instanceKeyword, mockInstances]);
+
+  const localPagedInstances = useMemo(() => {
+    const start = (instancePage - 1) * instancePageSize;
+    return localFilteredInstances.slice(start, start + instancePageSize);
+  }, [instancePage, instancePageSize, localFilteredInstances]);
+
   useEffect(() => {
-    if (!mockBusiness) {
-      setBusinessInstances([]);
+    setInstancePage(1);
+    setInstancePageSize(10);
+    setInstanceKeyword('');
+    setInstanceEnvFilter('all');
+    setBusinessInstances([]);
+    setInstanceTotal(0);
+    setInstanceTemplates([]);
+  }, [id]);
+
+  useEffect(() => {
+    if (metahubBusinessUnitID) {
       return;
     }
-    setBusinessInstances(businessInstanceConfigs.filter((item) => item.buId === mockBusiness.id));
-  }, [mockBusiness]);
+
+    const maxPage = Math.max(1, Math.ceil(localFilteredInstances.length / instancePageSize));
+    if (instancePage > maxPage) {
+      setInstancePage(maxPage);
+    }
+  }, [instancePage, instancePageSize, localFilteredInstances.length, metahubBusinessUnitID]);
 
   useEffect(() => {
     if (!metahubBusinessUnitID) {
@@ -60,24 +112,74 @@ export function BusinessDetailPage() {
     }
 
     let cancelled = false;
-    void listBusinessUnitInstanceOAMs(metahubBusinessUnitID)
+    void listInstanceOAMTemplates()
       .then((rows) => {
         if (cancelled) {
           return;
         }
-        setBusinessInstances(rows);
+        setInstanceTemplates(rows);
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) {
           return;
         }
-        console.warn('metahub 实例加载失败，已回退到本地数据');
+        console.error(error);
+        void message.error('实例模板加载失败');
+        setInstanceTemplates([]);
       });
 
     return () => {
       cancelled = true;
     };
   }, [metahubBusinessUnitID]);
+
+  useEffect(() => {
+    if (!metahubBusinessUnitID) {
+      return;
+    }
+
+    let cancelled = false;
+    setInstancesLoading(true);
+
+    void listBusinessUnitInstanceOAMs(metahubBusinessUnitID, {
+      page: instancePage,
+      pageSize: instancePageSize,
+      env: instanceEnvFilter,
+      keyword: instanceKeyword,
+    })
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setBusinessInstances(result.items);
+        setInstanceTotal(result.total);
+        if (result.page !== instancePage) {
+          setInstancePage(result.page);
+        }
+        if (result.pageSize !== instancePageSize) {
+          setInstancePageSize(result.pageSize);
+        }
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        console.error(error);
+        void message.error('metahub 实例加载失败');
+        setBusinessInstances([]);
+        setInstanceTotal(0);
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+        setInstancesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [instanceEnvFilter, instanceKeyword, instancePage, instancePageSize, metahubBusinessUnitID]);
 
   if (!business) {
     return (
@@ -107,14 +209,50 @@ export function BusinessDetailPage() {
     { id: 'cd', label: 'CD 配置' },
   ];
 
-  const handleCreateInstance = async (instance: Instance) => {
+  const reloadMetahubInstances = async (query?: {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    env?: string;
+  }) => {
     if (!metahubBusinessUnitID) {
-      return instance;
+      return null;
     }
 
-    const created = await createBusinessUnitInstanceOAM(metahubBusinessUnitID, instance);
-    setBusinessInstances((current) => [created, ...current.filter((item) => item.id !== created.id)]);
-    return created;
+    const result = await listBusinessUnitInstanceOAMs(metahubBusinessUnitID, {
+      page: query?.page ?? instancePage,
+      pageSize: query?.pageSize ?? instancePageSize,
+      env: query?.env ?? instanceEnvFilter,
+      keyword: query?.keyword ?? instanceKeyword,
+    });
+    setBusinessInstances(result.items);
+    setInstanceTotal(result.total);
+    setInstancePage(result.page);
+    setInstancePageSize(result.pageSize);
+    return result;
+  };
+
+  const handleCreateInstance = async (payload: CreateInstanceFromTemplatePayload) => {
+    if (!metahubBusinessUnitID) {
+      return undefined;
+    }
+
+    try {
+      const created = await createBusinessUnitInstanceOAM(metahubBusinessUnitID, payload);
+      const nextEnv = created.env;
+      setInstanceEnvFilter(nextEnv);
+      setInstanceKeyword('');
+      setInstancePage(1);
+      setInstancesLoading(true);
+      await reloadMetahubInstances({ page: 1, pageSize: instancePageSize, env: nextEnv, keyword: '' });
+      return created;
+    } catch (error) {
+      console.error(error);
+      void message.error('创建业务实例失败');
+      return undefined;
+    } finally {
+      setInstancesLoading(false);
+    }
   };
 
   const handleSaveInstance = async (instance: Instance) => {
@@ -122,10 +260,57 @@ export function BusinessDetailPage() {
       return instance;
     }
 
-    const updated = await updateInstanceOAM(instance);
-    setBusinessInstances((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-    return updated;
+    try {
+      const updated = await updateInstanceOAM(instance);
+      const nextEnv = instanceEnvFilter !== 'all' && instanceEnvFilter !== updated.env ? updated.env : instanceEnvFilter;
+      const nextKeyword = instanceKeyword.trim() && !updated.name.toLowerCase().includes(instanceKeyword.trim().toLowerCase()) ? '' : instanceKeyword;
+      if (instanceEnvFilter !== 'all' && instanceEnvFilter !== updated.env) {
+        setInstanceEnvFilter(nextEnv);
+      }
+      if (nextKeyword !== instanceKeyword) {
+        setInstanceKeyword(nextKeyword);
+      }
+      setInstancesLoading(true);
+      await reloadMetahubInstances({ page: instancePage, pageSize: instancePageSize, env: nextEnv, keyword: nextKeyword });
+      return updated;
+    } catch (error) {
+      console.error(error);
+      void message.error('更新业务实例失败');
+      return undefined;
+    } finally {
+      setInstancesLoading(false);
+    }
   };
+
+  const handleDeleteInstance = async (instance: Instance) => {
+    if (!metahubBusinessUnitID) {
+      return;
+    }
+
+    try {
+      await deleteInstanceOAM(Number(instance.id));
+      const willEmptyPage = businessInstances.length <= 1 && instancePage > 1;
+      if (willEmptyPage) {
+        const nextPage = instancePage - 1;
+        setInstancePage(nextPage);
+        setInstancesLoading(true);
+        await reloadMetahubInstances({ page: nextPage, pageSize: instancePageSize });
+      } else {
+        setInstancesLoading(true);
+        await reloadMetahubInstances({ page: instancePage, pageSize: instancePageSize });
+      }
+    } catch (error) {
+      console.error(error);
+      void message.error('删除业务实例失败');
+    } finally {
+      setInstancesLoading(false);
+    }
+  };
+
+  const panelInstances = metahubBusinessUnitID ? businessInstances : localPagedInstances;
+  const panelTotal = metahubBusinessUnitID ? instanceTotal : localFilteredInstances.length;
+  const panelTemplates = metahubBusinessUnitID ? instanceTemplates : [];
+  const panelLoading = metahubBusinessUnitID ? instancesLoading : false;
 
   return (
     <BasePage
@@ -145,9 +330,29 @@ export function BusinessDetailPage() {
     >
       {activeTab === 'instances' && (
         <BusinessInstancesPanel
-          instances={businessInstances}
+          instances={panelInstances}
+          total={panelTotal}
+          page={instancePage}
+          pageSize={instancePageSize}
+          keyword={instanceKeyword}
+          envFilter={instanceEnvFilter}
+          loading={panelLoading}
+          templates={panelTemplates}
+          onPageChange={(nextPage, nextPageSize) => {
+            setInstancePage(nextPage);
+            setInstancePageSize(nextPageSize);
+          }}
+          onKeywordChange={(value) => {
+            setInstanceKeyword(value);
+            setInstancePage(1);
+          }}
+          onEnvFilterChange={(value) => {
+            setInstanceEnvFilter(value);
+            setInstancePage(1);
+          }}
           onCreateInstance={metahubBusinessUnitID ? handleCreateInstance : undefined}
           onSaveInstance={metahubBusinessUnitID ? handleSaveInstance : undefined}
+          onDeleteInstance={metahubBusinessUnitID ? handleDeleteInstance : undefined}
         />
       )}
       {activeTab === 'plans' && <DeployPlansTable plans={businessPlans} />}
