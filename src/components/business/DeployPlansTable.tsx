@@ -223,6 +223,8 @@ export function DeployPlansTable({ plans }: DeployPlansTableProps) {
         }
         [data-deploy-plans-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          padding-block-start: 10px;
+          padding-block-end: 6px;
         }
       `}</style>
     </div>

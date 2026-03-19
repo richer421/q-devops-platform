@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { message } from 'antd';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppRouter } from '../../app/router/routes';
 
@@ -192,6 +191,7 @@ describe('business detail page', () => {
     expect(await screen.findByText('cd-api-server-prod')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '新建 CD 配置' }));
+    expect(document.querySelector('.ant-modal')).not.toBeNull();
     fireEvent.change(await screen.findByLabelText('名称'), { target: { value: 'cd-api-server-gray' } });
     fireEvent.click(screen.getByRole('button', { name: '创建 CD 配置' }));
 
@@ -199,7 +199,7 @@ describe('business detail page', () => {
 
     const existingRow = screen.getByText('cd-api-server-prod').closest('tr');
     expect(existingRow).not.toBeNull();
-    fireEvent.click(within(existingRow as HTMLElement).getByRole('button', { name: '编辑' }));
+    fireEvent.click(within(existingRow as HTMLElement).getByRole('button', { name: /^编辑 / }));
 
     expect(await screen.findByDisplayValue('cd-api-server-prod')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'cd-api-server-prod-canary' } });
@@ -216,14 +216,10 @@ describe('business detail page', () => {
 
     const detailDrawer = await screen.findByRole('dialog');
     expect(within(detailDrawer).getByText('3 批次 / 10%,30%,60%')).toBeInTheDocument();
-    expect(within(detailDrawer).getByText('2026-03-18T14:00:00Z')).toBeInTheDocument();
+    expect(within(detailDrawer).getByText('2026/03/18 14:00')).toBeInTheDocument();
   });
 
-  it('shows backend delete error message for referenced metahub cd config', async () => {
-    const messageError = vi.spyOn(message, 'error').mockImplementation(
-      () => Promise.resolve(true) as unknown as ReturnType<typeof message.error>,
-    );
-
+  it('shows backend delete error in confirm modal for referenced metahub cd config', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = getRequestURL(input);
       const method = init?.method ?? 'GET';
@@ -280,10 +276,11 @@ describe('business detail page', () => {
 
     const row = screen.getByText('cd-api-server-prod').closest('tr');
     expect(row).not.toBeNull();
-    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: '删除' }));
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: /^删除 / }));
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
 
     await waitFor(() => {
-      expect(messageError).toHaveBeenCalledWith('该 CD 配置已被发布计划引用，禁止删除');
+      expect(screen.getByText('该 CD 配置已被发布计划引用，禁止删除')).toBeInTheDocument();
     });
   });
 });

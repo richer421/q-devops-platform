@@ -54,18 +54,21 @@ export function CIConfigTablePanel({
         title: '名称',
         dataIndex: 'name',
         key: 'name',
+        width: 120,
+        onHeaderCell: () => ({ style: { minWidth: 260 } }),
+        onCell: () => ({ style: { minWidth: 260 } }),
         ellipsis: { showTitle: false },
         render: (value: string) => (
-          <Typography.Text ellipsis={{ tooltip: value }} style={{ maxWidth: 220 }}>
+          <Typography.Text ellipsis={{ tooltip: value }} style={{ maxWidth: 260 }}>
             {value}
           </Typography.Text>
         ),
       },
       {
-        title: '镜像仓库',
-        dataIndex: 'fullImageRepo',
-        key: 'fullImageRepo',
-        width: 320,
+        title: 'Tag 模板',
+        dataIndex: 'tagRuleLabel',
+        key: 'tagRuleLabel',
+        width: 180,
         ellipsis: { showTitle: false },
         render: (value: string) => (
           <Typography.Text ellipsis={{ tooltip: value }} style={{ maxWidth: 320 }}>
@@ -74,21 +77,9 @@ export function CIConfigTablePanel({
         ),
       },
       {
-        title: 'Tag 规则',
-        dataIndex: 'tagRuleLabel',
-        key: 'tagRuleLabel',
-        width: 220,
-        ellipsis: { showTitle: false },
-        render: (value: string) => (
-          <Typography.Text ellipsis={{ tooltip: value }} style={{ maxWidth: 220 }}>
-            {value}
-          </Typography.Text>
-        ),
-      },
-      {
         title: 'Makefile',
         key: 'makefilePath',
-        width: 180,
+        width: 140,
         ellipsis: { showTitle: false },
         render: (_, record) => (
           <Typography.Text ellipsis={{ tooltip: record.buildSpec.makefilePath }} style={{ maxWidth: 180 }}>
@@ -99,7 +90,7 @@ export function CIConfigTablePanel({
       {
         title: 'Dockerfile',
         key: 'dockerfilePath',
-        width: 180,
+        width: 140,
         ellipsis: { showTitle: false },
         render: (_, record) => (
           <Typography.Text ellipsis={{ tooltip: record.buildSpec.dockerfilePath }} style={{ maxWidth: 180 }}>
@@ -111,14 +102,15 @@ export function CIConfigTablePanel({
         title: '更新时间',
         dataIndex: 'updatedAt',
         key: 'updatedAt',
-        width: 180,
+        width: 100,
         render: (value: string) => formatDateTime(value),
       },
       {
         title: '操作',
         key: 'actions',
         align: 'center',
-        width: 184,
+        width: 180,
+        fixed: 'right',
         render: (_, record) => (
           <Space size={4}>
             <Button type="link" onClick={() => onView(record)}>
@@ -208,7 +200,8 @@ export function CIConfigTablePanel({
           dataSource={[...items]}
           pagination={pagination}
           loading={loading}
-          scroll={{ x: 1280 }}
+          tableLayout="fixed"
+          scroll={{ x: 1220 }}
           size="middle"
           locale={{
             emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 CI 配置" />,
@@ -227,6 +220,8 @@ export function CIConfigTablePanel({
         }
         [data-ci-config-panel='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          padding-block-start: 10px;
+          padding-block-end: 6px;
         }
       `}</style>
     </div>

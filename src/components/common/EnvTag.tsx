@@ -23,9 +23,29 @@ const DEFAULT_ENV_TAG_META: EnvTagMeta = {
   border: '#E5E6EB',
 };
 
+function normalizeEnvironment(env: string): Environment | null {
+  const normalized = env.trim().toLowerCase();
+  if (normalized === 'dev' || normalized === '开发') {
+    return 'dev';
+  }
+  if (normalized === 'test' || normalized === '测试') {
+    return 'test';
+  }
+  if (normalized === 'gray' || normalized === '灰度') {
+    return 'gray';
+  }
+  if (normalized === 'prod' || normalized === '生产') {
+    return 'prod';
+  }
+  return null;
+}
+
 function resolveEnvTagMeta(env: string): EnvTagMeta {
-  const normalized = env.toLowerCase() as Environment;
-  return ENV_TAG_META[normalized] ?? {
+  const normalizedEnv = normalizeEnvironment(env);
+  if (normalizedEnv) {
+    return ENV_TAG_META[normalizedEnv];
+  }
+  return {
     ...DEFAULT_ENV_TAG_META,
     label: env.toUpperCase(),
   };

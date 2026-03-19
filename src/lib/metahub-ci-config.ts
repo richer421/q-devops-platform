@@ -22,9 +22,6 @@ type MetahubCIConfigDTO = {
   id: number;
   business_unit_id: number;
   name: string;
-  image_registry: string;
-  image_repo: string;
-  full_image_repo: string;
   image_tag_rule: CIConfigImageTagRuleDTO;
   build_spec: CIConfigBuildSpecDTO;
   deploy_plan_ref_count?: number;
@@ -41,7 +38,6 @@ type MetahubCIConfigPageDTO = {
 
 type CreateCIConfigRequest = {
   name: string;
-  image_registry: string;
   image_tag_rule: CIConfigImageTagRuleDTO;
   build_spec: {
     makefile_path: string;
@@ -52,7 +48,6 @@ type CreateCIConfigRequest = {
 
 type UpdateCIConfigRequest = {
   name: string;
-  image_registry: string;
   image_tag_rule: CIConfigImageTagRuleDTO;
   build_spec: {
     makefile_path: string;
@@ -81,9 +76,6 @@ export type CIConfigItem = {
   id: number;
   businessUnitID: number;
   name: string;
-  imageRegistry: string;
-  imageRepo: string;
-  fullImageRepo: string;
   imageTagRule: CIConfigTagRule;
   tagRuleLabel: string;
   buildSpec: CIConfigBuildSpec;
@@ -107,7 +99,6 @@ export type CIConfigListFilters = {
 
 export type CIConfigFormValue = {
   name: string;
-  imageRegistry: string;
   imageTagRuleType: CIConfigTagRuleType;
   imageTagTemplate: string;
   withTimestamp: boolean;
@@ -147,35 +138,39 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data;
 }
 
-function normalizeRegistry(value: string) {
-  return value.trim().replace(/\/+$/, '');
-}
-
 function normalizePath(value: string, fallback: string) {
   const trimmed = value.trim();
   return trimmed || fallback;
 }
 
+function normalizeMakeCommand(value: string) {
+  const trimmed = value.trim();
+  if (trimmed === '' || trimmed === 'build') {
+    return 'make build';
+  }
+  return trimmed;
+}
+
 export function formatCIConfigTagRule(rule: CIConfigTagRule) {
   switch (rule.type) {
     case 'branch': {
-      const extras = [];
+      const extras: string[] = [];
       if (rule.withTimestamp) {
-        extras.push('时间戳');
+        extras.push('${timestamp}');
       }
       if (rule.withCommit) {
-        extras.push('Commit');
+        extras.push('${commit}');
       }
-      return extras.length > 0 ? `分支名 + ${extras.join(' + ')}` : '分支名';
+      return extras.length > 0 ? ['${branch}', ...extras].join('-') : '${branch}';
     }
     case 'tag':
-      return 'Git Tag';
+      return '${tag}';
     case 'commit':
-      return 'Commit';
+      return '${commit}';
     case 'timestamp':
-      return '时间戳';
+      return '${timestamp}';
     case 'custom':
-      return `自定义: ${rule.template}`;
+      return rule.template.trim() || '${branch}';
   }
 }
 
@@ -188,7 +183,7 @@ export function ciConfigFromMetahub(dto: MetahubCIConfigDTO): CIConfigItem {
   };
   const buildSpec: CIConfigBuildSpec = {
     makefilePath: dto.build_spec.makefile_path || './Makefile',
-    makeCommand: dto.build_spec.make_command || 'build',
+    makeCommand: normalizeMakeCommand(dto.build_spec.make_command || ''),
     dockerfilePath: dto.build_spec.dockerfile_path || './Dockerfile',
     dockerContext: dto.build_spec.docker_context || '.',
   };
@@ -197,9 +192,6 @@ export function ciConfigFromMetahub(dto: MetahubCIConfigDTO): CIConfigItem {
     id: dto.id,
     businessUnitID: dto.business_unit_id,
     name: dto.name,
-    imageRegistry: dto.image_registry,
-    imageRepo: dto.image_repo,
-    fullImageRepo: dto.full_image_repo,
     imageTagRule,
     tagRuleLabel: formatCIConfigTagRule(imageTagRule),
     buildSpec,
@@ -212,7 +204,6 @@ export function ciConfigFromMetahub(dto: MetahubCIConfigDTO): CIConfigItem {
 export function ciConfigToFormValue(item: CIConfigItem): CIConfigFormValue {
   return {
     name: item.name,
-    imageRegistry: item.imageRegistry,
     imageTagRuleType: item.imageTagRule.type,
     imageTagTemplate: item.imageTagRule.template,
     withTimestamp: item.imageTagRule.withTimestamp,
@@ -241,11 +232,10 @@ function toImageTagRulePayload(value: CIConfigFormValue): CIConfigImageTagRuleDT
 export function ciConfigToCreatePayload(value: CIConfigFormValue): CreateCIConfigRequest {
   return {
     name: value.name.trim(),
-    image_registry: normalizeRegistry(value.imageRegistry),
     image_tag_rule: toImageTagRulePayload(value),
     build_spec: {
       makefile_path: normalizePath(value.makefilePath, './Makefile'),
-      make_command: value.makeCommand.trim() || 'build',
+      make_command: normalizeMakeCommand(value.makeCommand),
       dockerfile_path: normalizePath(value.dockerfilePath, './Dockerfile'),
     },
   };

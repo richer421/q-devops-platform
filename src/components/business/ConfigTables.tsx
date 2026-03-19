@@ -1,8 +1,9 @@
-import { Button, Empty, Input, Select, Space, Table, Tag, Typography } from 'antd';
+import { Button, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { GetProp, TableProps } from 'antd';
-import { Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { CDConfig, CIConfig, Instance } from '../../mock';
+import { formatDateTimeYMDHM } from '../../lib/date-time';
 import { getInstanceStatusMeta } from '../../lib/status';
 import { EnvTag } from '../common/EnvTag';
 
@@ -214,6 +215,8 @@ export function CIConfigsTable({ configs }: CIConfigsTableProps) {
         }
         [data-ci-configs-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          padding-block-start: 10px;
+          padding-block-end: 6px;
         }
       `}</style>
     </div>
@@ -247,14 +250,21 @@ export function CDConfigsTable({
         dataIndex: 'name',
         key: 'name',
         ellipsis: { showTitle: false },
+        width: 120,
         render: (value) => (
-          <Typography.Text ellipsis={{ tooltip: String(value) }} style={{ maxWidth: 220 }}>
+          <Typography.Text ellipsis={{ tooltip: String(value) }} style={{ width: 120 }}>
             {String(value)}
           </Typography.Text>
         ),
       },
       { title: '发布区域', dataIndex: 'releaseRegion', key: 'releaseRegion', width: 120 },
-      { title: '发布环境', dataIndex: 'releaseEnv', key: 'releaseEnv', width: 120 },
+      {
+        title: '发布环境',
+        dataIndex: 'releaseEnv',
+        key: 'releaseEnv',
+        width: 120,
+        render: (value: string) => <EnvTag env={value} />,
+      },
       { title: '发布策略', dataIndex: 'deploymentMode', key: 'deploymentMode', width: 120 },
       {
         title: '策略摘要',
@@ -272,25 +282,26 @@ export function CDConfigsTable({
         title: '更新时间',
         dataIndex: 'updatedAt',
         key: 'updatedAt',
-        width: 180,
-        render: (value) => value || '-',
+        width: 100,
+        render: (value: string | undefined) => formatDateTimeYMDHM(value),
       },
       {
         title: '操作',
         key: 'action',
         align: 'center',
-        width: 180,
+        width: 184,
+        fixed: 'right',
         render: (_, record) => (
           <Space size={4}>
-            <Button size="small" type="link" icon={<Eye size={14} />} onClick={() => onDetail(record)}>
+            <Button type="link" onClick={() => onDetail(record)}>
               详情
             </Button>
-            <Button size="small" type="link" icon={<Pencil size={14} />} onClick={() => onEdit(record)}>
-              编辑
-            </Button>
-            <Button size="small" type="link" danger icon={<Trash2 size={14} />} onClick={() => onDelete(record)}>
-              删除
-            </Button>
+            <Tooltip title="编辑">
+              <Button type="text" aria-label={`编辑 ${record.name}`} icon={<Pencil size={14} />} onClick={() => onEdit(record)} />
+            </Tooltip>
+            <Tooltip title="删除">
+              <Button type="text" danger aria-label={`删除 ${record.name}`} icon={<Trash2 size={14} />} onClick={() => onDelete(record)} />
+            </Tooltip>
           </Space>
         ),
       },
@@ -310,7 +321,18 @@ export function CDConfigsTable({
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: 16, borderBottom: '1px solid #e5e6eb', flexShrink: 0 }}>
+      <div
+        style={{
+          padding: 16,
+          borderBottom: '1px solid #e5e6eb',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          flexShrink: 0,
+        }}
+      >
         <Space wrap size={12}>
           <Input
             value={keyword}
@@ -353,10 +375,10 @@ export function CDConfigsTable({
               { value: '金丝雀发布', label: '金丝雀发布' },
             ]}
           />
-          <Button type="primary" icon={<Plus size={14} />} onClick={onCreate}>
-            新建 CD 配置
-          </Button>
         </Space>
+        <Button type="primary" icon={<Plus size={14} />} onClick={onCreate}>
+          新建 CD 配置
+        </Button>
       </div>
       <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
         <Table<CDConfig>
@@ -388,6 +410,8 @@ export function CDConfigsTable({
         }
         [data-cd-configs-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          padding-block-start: 10px;
+          padding-block-end: 6px;
         }
       `}</style>
     </div>

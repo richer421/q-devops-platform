@@ -1,4 +1,4 @@
-import { Button, Checkbox, Form, Input, Modal, Select, Space, Typography } from 'antd';
+import { Button, Checkbox, Form, Input, Modal, Select, Space } from 'antd';
 import { Check } from 'lucide-react';
 import { useEffect } from 'react';
 import type { CIConfigFormValue } from '../../../lib/metahub-ci-config';
@@ -47,15 +47,15 @@ export function CIConfigFormModal({
         layout="vertical"
         initialValues={initialValue}
         onFinish={(value) => {
+          const makeCommand = value.makeCommand.trim();
           onSubmit({
             name: value.name.trim(),
-            imageRegistry: value.imageRegistry.trim(),
             imageTagRuleType: value.imageTagRuleType,
             imageTagTemplate: value.imageTagTemplate?.trim() ?? '',
             withTimestamp: value.withTimestamp ?? false,
             withCommit: value.withCommit ?? false,
             makefilePath: value.makefilePath.trim(),
-            makeCommand: value.makeCommand.trim(),
+            makeCommand: makeCommand || 'make build',
             dockerfilePath: value.dockerfilePath.trim(),
           });
         }}
@@ -67,18 +67,6 @@ export function CIConfigFormModal({
         >
           <Input placeholder="例：api-server" />
         </Form.Item>
-
-        <Form.Item<FormShape>
-          label="镜像仓库地址"
-          name="imageRegistry"
-          rules={[{ required: true, message: '请输入镜像仓库地址' }]}
-        >
-          <Input placeholder="例：harbor.example.com/project-a" />
-        </Form.Item>
-
-        <Typography.Paragraph type="secondary" style={{ marginTop: -4 }}>
-          镜像仓库路径会按业务单元名称自动生成，默认不在这里配置。
-        </Typography.Paragraph>
 
         <Form.Item<FormShape>
           label="Tag 规则"
@@ -123,7 +111,7 @@ export function CIConfigFormModal({
         </Form.Item>
 
         <Form.Item<FormShape> label="构建命令" name="makeCommand">
-          <Input placeholder="build" />
+          <Input placeholder="make build" />
         </Form.Item>
 
         <Form.Item<FormShape> label="Dockerfile 路径" name="dockerfilePath" style={{ marginBottom: 0 }}>

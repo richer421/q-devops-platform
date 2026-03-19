@@ -19,7 +19,6 @@ vi.mock('../../lib/metahub-ci-config', () => ({
   deleteCIConfig: metahubMocks.deleteCIConfig,
   ciConfigToFormValue: (item: CIConfigItem) => ({
     name: item.name,
-    imageRegistry: item.imageRegistry,
     imageTagRuleType: item.imageTagRule.type,
     imageTagTemplate: item.imageTagRule.template,
     withTimestamp: item.imageTagRule.withTimestamp,
@@ -35,19 +34,16 @@ function createItem(id: number, name: string): CIConfigItem {
     id,
     businessUnitID: 34,
     name,
-    imageRegistry: 'harbor.example.com/project-a',
-    imageRepo: name,
-    fullImageRepo: `harbor.example.com/project-a/${name}`,
     imageTagRule: {
       type: 'branch',
       template: '',
       withTimestamp: true,
       withCommit: false,
     },
-    tagRuleLabel: '分支名 + 时间戳',
+    tagRuleLabel: '${branch}-${timestamp}',
     buildSpec: {
       makefilePath: './Makefile',
-      makeCommand: 'build',
+      makeCommand: 'make build',
       dockerfilePath: './Dockerfile',
       dockerContext: '.',
     },
@@ -64,13 +60,12 @@ function HookHarness() {
 
   const submitValue: CIConfigFormValue = {
     name: 'api-server-updated',
-    imageRegistry: 'harbor.example.com/project-a',
     imageTagRuleType: 'branch',
     imageTagTemplate: '',
     withTimestamp: true,
     withCommit: false,
     makefilePath: './Makefile',
-    makeCommand: 'build',
+    makeCommand: 'make build',
     dockerfilePath: './Dockerfile',
   };
 
@@ -80,6 +75,7 @@ function HookHarness() {
       <div data-testid="keyword">{tab.keyword}</div>
       <div data-testid="detail-name">{tab.detailItem?.name ?? ''}</div>
       <div data-testid="delete-name">{tab.deleteTarget?.name ?? ''}</div>
+      <div data-testid="delete-error">{tab.deleteError}</div>
       <button onClick={() => tab.onPageChange(2, 10)}>page-2</button>
       <button onClick={() => tab.onKeywordChange('api-server')}>search-api</button>
       <button onClick={() => tab.requestDelete(createItem(12, 'api-server'))}>open-delete</button>
@@ -235,6 +231,31 @@ describe('useCIConfigTab', () => {
         }),
       );
       expect(screen.getByTestId('detail-name')).toHaveTextContent('api-server-updated');
+    });
+  });
+
+  it('maps english delete guard message into chinese copy', async () => {
+    metahubMocks.listBusinessUnitCIConfigs.mockResolvedValue({
+      items: [createItem(12, 'api-server')],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    });
+    metahubMocks.deleteCIConfig.mockRejectedValue(new Error('ci config is referenced by 1 deploy plans and cannot be deleted'));
+
+    render(<HookHarness />);
+
+    await waitFor(() => {
+      expect(metahubMocks.listBusinessUnitCIConfigs).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'open-delete' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'confirm-delete' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('delete-error')).toHaveTextContent('该 CI 配置已被 1 个部署计划引用，禁止删除');
     });
   });
 });

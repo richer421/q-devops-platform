@@ -8,16 +8,13 @@ function createItem(): CIConfigItem {
     id: 12,
     businessUnitID: 34,
     name: 'api-server',
-    imageRegistry: 'harbor.example.com/project-a',
-    imageRepo: 'api-server',
-    fullImageRepo: 'harbor.example.com/project-a/api-server',
     imageTagRule: {
       type: 'branch',
       template: '',
       withTimestamp: true,
       withCommit: true,
     },
-    tagRuleLabel: '分支名 + 时间戳 + Commit',
+    tagRuleLabel: '${branch}-${timestamp}-${commit}',
     buildSpec: {
       makefilePath: './Makefile',
       makeCommand: 'build',
@@ -37,7 +34,7 @@ describe('ci config table panel', () => {
     const onEdit = vi.fn();
     const onDelete = vi.fn();
 
-    render(
+    const { container } = render(
       <CIConfigTablePanel
         items={[item]}
         total={1}
@@ -55,8 +52,14 @@ describe('ci config table panel', () => {
     );
 
     expect(await screen.findByPlaceholderText('搜索 CI 配置名称')).toBeInTheDocument();
-    expect(screen.getByText('harbor.example.com/project-a/api-server')).toBeInTheDocument();
-    expect(screen.getByText('分支名 + 时间戳 + Commit')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Tag 模板' })).toBeInTheDocument();
+    expect(screen.getByText('${branch}-${timestamp}-${commit}')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '名称' })).toHaveStyle({ minWidth: '260px' });
+    expect(screen.getByRole('columnheader', { name: '操作' })).toHaveClass('ant-table-cell-fix-right');
+    const cssText = container.querySelector('style')?.textContent ?? '';
+    expect(cssText).toContain('margin-block-start: auto');
+    expect(cssText).toContain('padding-block-start: 10px');
+    expect(cssText).toContain('padding-block-end: 6px');
 
     fireEvent.click(screen.getByRole('button', { name: '新建 CI 配置' }));
     fireEvent.click(screen.getByRole('button', { name: '详情' }));

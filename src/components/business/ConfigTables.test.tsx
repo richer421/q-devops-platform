@@ -33,6 +33,7 @@ describe('config tables', () => {
             releaseEnv: '开发',
             deploymentMode: '滚动发布',
             strategySummary: '滚动发布（默认策略）',
+            updatedAt: '2026-03-19T15:27:10Z',
           },
         ]}
         keyword=""
@@ -58,6 +59,9 @@ describe('config tables', () => {
     expect(screen.getByRole('columnheader', { name: '策略摘要' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('搜索 CD 配置')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /新建 CD 配置/i })).toBeInTheDocument();
+    expect(screen.getByText('2026/03/19 15:27')).toBeInTheDocument();
+    expect(screen.getByText('开发')).toHaveClass('ant-tag');
+    expect(screen.getByRole('columnheader', { name: '操作' })).toHaveClass('ant-table-cell-fix-right');
   });
 
   it('renders instance table with right-aligned numeric columns', async () => {
@@ -151,8 +155,14 @@ describe('config tables', () => {
       />,
     );
 
-    expect(ciContainer.querySelector('style')?.textContent ?? '').toContain('margin-block-start: auto');
-    expect(cdContainer.querySelector('style')?.textContent ?? '').toContain('margin-block-start: auto');
+    const ciCssText = ciContainer.querySelector('style')?.textContent ?? '';
+    const cdCssText = cdContainer.querySelector('style')?.textContent ?? '';
+    expect(ciCssText).toContain('margin-block-start: auto');
+    expect(ciCssText).toContain('padding-block-start: 10px');
+    expect(ciCssText).toContain('padding-block-end: 6px');
+    expect(cdCssText).toContain('margin-block-start: auto');
+    expect(cdCssText).toContain('padding-block-start: 10px');
+    expect(cdCssText).toContain('padding-block-end: 6px');
     expect(instanceContainer.querySelector('style')?.textContent ?? '').toContain('margin-block-start: auto');
   });
 

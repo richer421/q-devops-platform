@@ -89,6 +89,9 @@ export function BusinessDetailPage() {
   const [cdDrawerConfig, setCdDrawerConfig] = useState<CDConfig | null>(null);
   const [cdDrawerLoading, setCdDrawerLoading] = useState(false);
   const [cdDrawerSubmitting, setCdDrawerSubmitting] = useState(false);
+  const [cdDeleteTarget, setCdDeleteTarget] = useState<CDConfig | null>(null);
+  const [cdDeleteError, setCdDeleteError] = useState('');
+  const [cdDeleting, setCdDeleting] = useState(false);
 
   const [businessInstances, setBusinessInstances] = useState<Instance[]>([]);
   const [instanceTotal, setInstanceTotal] = useState(0);
@@ -220,6 +223,9 @@ export function BusinessDetailPage() {
     setCdDrawerConfig(null);
     setCdDrawerLoading(false);
     setCdDrawerSubmitting(false);
+    setCdDeleteTarget(null);
+    setCdDeleteError('');
+    setCdDeleting(false);
   }, [id, mockCDConfigs]);
 
   useEffect(() => {
@@ -605,7 +611,25 @@ export function BusinessDetailPage() {
     }
   };
 
-  const handleDeleteCDConfig = async (config: CDConfig) => {
+  const requestDeleteCDConfig = (config: CDConfig) => {
+    setCdDeleteTarget(config);
+    setCdDeleteError('');
+  };
+
+  const closeDeleteCDConfig = () => {
+    setCdDeleteTarget(null);
+    setCdDeleteError('');
+    setCdDeleting(false);
+  };
+
+  const confirmDeleteCDConfig = async () => {
+    if (!cdDeleteTarget) {
+      return;
+    }
+
+    const config = cdDeleteTarget;
+    setCdDeleting(true);
+
     try {
       if (metahubBusinessUnitID && /^\d+$/.test(config.id)) {
         await deleteCDConfig(Number(config.id));
@@ -616,23 +640,28 @@ export function BusinessDetailPage() {
         }
         setCdLoading(true);
         await reloadMetahubCDConfigs({ page: nextPage });
-        return;
+      } else {
+        const referenced = deployPlans.some((item) => item.buId === business.id && item.cdConfig === config.name);
+        if (referenced) {
+          throw new Error('该 CD 配置已被发布计划引用，禁止删除');
+        }
+
+        setCdList((current) => current.filter((item) => item.id !== config.id));
       }
 
-      const referenced = deployPlans.some((item) => item.buId === business.id && item.cdConfig === config.name);
-      if (referenced) {
-        throw new Error('该 CD 配置已被发布计划引用，禁止删除');
-      }
-
-      setCdList((current) => current.filter((item) => item.id !== config.id));
       if (cdDrawerConfig?.id === config.id) {
         setCdDrawerOpen(false);
         setCdDrawerConfig(null);
       }
+
+      setCdDeleteTarget(null);
+      setCdDeleteError('');
+      void message.success('CD 配置删除成功');
     } catch (error) {
       console.error(error);
-      void message.error(error instanceof Error ? error.message : '删除 CD 配置失败');
+      setCdDeleteError(error instanceof Error ? error.message : '删除 CD 配置失败');
     } finally {
+      setCdDeleting(false);
       setCdLoading(false);
     }
   };
@@ -784,10 +813,27 @@ export function BusinessDetailPage() {
             void handleOpenCDDrawer('edit', config);
           }}
           onDelete={(config) => {
-            void handleDeleteCDConfig(config);
+            requestDeleteCDConfig(config);
           }}
         />
       )}
+      <Modal
+        open={cdDeleteTarget != null}
+        title="确认删除 CD 配置"
+        okText="确认删除"
+        cancelText="取消"
+        okButtonProps={{ danger: true, loading: cdDeleting }}
+        onOk={() => {
+          void confirmDeleteCDConfig();
+        }}
+        onCancel={closeDeleteCDConfig}
+        destroyOnHidden
+      >
+        <Typography.Paragraph>
+          确定要删除 CD 配置 <Typography.Text strong>{cdDeleteTarget?.name}</Typography.Text> 吗？该操作不可撤销。
+        </Typography.Paragraph>
+        {cdDeleteError ? <Alert type="error" message={cdDeleteError} showIcon /> : null}
+      </Modal>
       <CDConfigDrawer
         open={cdDrawerOpen}
         mode={cdDrawerMode}

@@ -13,6 +13,9 @@ describe('cd config drawer', () => {
       />,
     );
 
+    expect(document.querySelector('.ant-modal')).toBeInTheDocument();
+    expect(document.querySelector('.ant-drawer')).toBeNull();
+
     fireEvent.click(screen.getByRole('radio', { name: '金丝雀发布' }));
 
     expect(await screen.findByLabelText('流量批次数')).toBeInTheDocument();
@@ -32,6 +35,30 @@ describe('cd config drawer', () => {
 
     expect(screen.queryByLabelText('流量批次数')).toBeNull();
     expect(screen.queryByLabelText('每批流量比例')).toBeNull();
+  });
+
+  it('renders edit mode as modal instead of drawer', async () => {
+    render(
+      <CDConfigDrawer
+        open
+        mode="edit"
+        config={{
+          id: 'cd-001',
+          buId: 'bu-001',
+          name: 'cd-api-server-prod',
+          releaseRegion: '华北',
+          releaseEnv: '生产',
+          deploymentMode: '滚动发布',
+          strategySummary: '按默认批次滚动发布',
+        }}
+        onClose={() => {}}
+        onSubmit={() => {}}
+      />,
+    );
+
+    expect(document.querySelector('.ant-modal')).toBeInTheDocument();
+    expect(document.querySelector('.ant-drawer')).toBeNull();
+    expect(await screen.findByRole('button', { name: '保存修改' })).toBeInTheDocument();
   });
 
   it('renders readonly detail mode with timestamps', async () => {
@@ -59,8 +86,9 @@ describe('cd config drawer', () => {
     );
 
     expect(await screen.findByText('cd-api-server-prod')).toBeInTheDocument();
-    expect(screen.getByText('2026-03-18T10:00:00Z')).toBeInTheDocument();
-    expect(screen.getByText('2026-03-18T12:00:00Z')).toBeInTheDocument();
+    expect(screen.getByText('2026/03/18 10:00')).toBeInTheDocument();
+    expect(screen.getByText('2026/03/18 12:00')).toBeInTheDocument();
+    expect(screen.getByText('生产')).toHaveClass('ant-tag');
   });
 
   it('submits parsed canary values from the form', async () => {

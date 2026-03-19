@@ -23,9 +23,6 @@ describe('metahub ci config client', () => {
       id: 12,
       business_unit_id: 34,
       name: 'api-server',
-      image_registry: 'harbor.example.com/project-a',
-      image_repo: 'api-server',
-      full_image_repo: 'harbor.example.com/project-a/api-server',
       image_tag_rule: {
         type: 'branch',
         with_timestamp: true,
@@ -37,10 +34,9 @@ describe('metahub ci config client', () => {
     });
 
     expect(item.id).toBe(12);
-    expect(item.fullImageRepo).toBe('harbor.example.com/project-a/api-server');
-    expect(item.tagRuleLabel).toBe('分支名 + 时间戳 + Commit');
+    expect(item.tagRuleLabel).toBe('${branch}-${timestamp}-${commit}');
     expect(item.buildSpec.makefilePath).toBe('./Makefile');
-    expect(item.buildSpec.makeCommand).toBe('build');
+    expect(item.buildSpec.makeCommand).toBe('make build');
     expect(item.buildSpec.dockerfilePath).toBe('./Dockerfile');
     expect(item.buildSpec.dockerContext).toBe('.');
   });
@@ -57,9 +53,6 @@ describe('metahub ci config client', () => {
                 id: 12,
                 business_unit_id: 34,
                 name: 'api-server',
-                image_registry: 'harbor.example.com/project-a',
-                image_repo: 'api-server',
-                full_image_repo: 'harbor.example.com/project-a/api-server',
                 image_tag_rule: {
                   type: 'custom',
                   template: 'release-${timestamp}',
@@ -98,26 +91,24 @@ describe('metahub ci config client', () => {
     expect(page.total).toBe(1);
     expect(page.page).toBe(2);
     expect(page.pageSize).toBe(20);
-    expect(page.items[0]?.tagRuleLabel).toBe('自定义: release-${timestamp}');
+    expect(page.items[0]?.tagRuleLabel).toBe('release-${timestamp}');
     expect(page.items[0]?.buildSpec.makefilePath).toBe('./ops/Makefile');
   });
 
-  it('omits image repo from create payload and keeps only static build inputs', () => {
+  it('omits image registry from create payload and defaults make command to make build', () => {
     const formValue: CIConfigFormValue = {
       name: 'api-server',
-      imageRegistry: ' harbor.example.com/project-a/ ',
       imageTagRuleType: 'branch',
       imageTagTemplate: '',
       withTimestamp: true,
       withCommit: false,
       makefilePath: './Makefile',
-      makeCommand: 'build-image',
+      makeCommand: '  ',
       dockerfilePath: './Dockerfile',
     };
 
     expect(ciConfigToCreatePayload(formValue)).toEqual({
       name: 'api-server',
-      image_registry: 'harbor.example.com/project-a',
       image_tag_rule: {
         type: 'branch',
         with_timestamp: true,
@@ -125,7 +116,7 @@ describe('metahub ci config client', () => {
       },
       build_spec: {
         makefile_path: './Makefile',
-        make_command: 'build-image',
+        make_command: 'make build',
         dockerfile_path: './Dockerfile',
       },
     });

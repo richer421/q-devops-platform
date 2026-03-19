@@ -1,5 +1,6 @@
-import { Alert, Button, Descriptions, Drawer, Empty, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Button, Descriptions, Drawer, Empty, Space, Spin, Tag } from 'antd';
 import type { CIConfigItem } from '../../../lib/metahub-ci-config';
+import { formatDateTimeYMDHM } from '../../../lib/date-time';
 
 type CIConfigDetailDrawerProps = {
   open: boolean;
@@ -51,24 +52,14 @@ export function CIConfigDetailDrawer({
             }}
           >
             <Descriptions.Item label="名称">{item.name}</Descriptions.Item>
-            <Descriptions.Item label="镜像仓库地址">{item.imageRegistry}</Descriptions.Item>
-            <Descriptions.Item label="镜像仓库路径">
-              <Space direction="vertical" size={4} style={{ display: 'flex' }}>
-                <Typography.Text>{item.imageRepo}</Typography.Text>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  按业务单元名称自动生成，不在表单中配置
-                </Typography.Text>
-              </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="完整镜像仓库">{item.fullImageRepo}</Descriptions.Item>
-            <Descriptions.Item label="Tag 规则">
+            <Descriptions.Item label="Tag 模板">
               <Tag>{item.tagRuleLabel}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Makefile">{item.buildSpec.makefilePath}</Descriptions.Item>
             <Descriptions.Item label="构建命令">{item.buildSpec.makeCommand}</Descriptions.Item>
             <Descriptions.Item label="Dockerfile">{item.buildSpec.dockerfilePath}</Descriptions.Item>
             <Descriptions.Item label="Docker Context">{item.buildSpec.dockerContext}</Descriptions.Item>
-            <Descriptions.Item label="最近更新">{item.updatedAt}</Descriptions.Item>
+            <Descriptions.Item label="最近更新">{formatDateTimeYMDHM(item.updatedAt)}</Descriptions.Item>
           </Descriptions>
         </Space>
       )}

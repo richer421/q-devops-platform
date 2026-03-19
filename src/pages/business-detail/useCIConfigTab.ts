@@ -20,19 +20,35 @@ type CIConfigFormMode = 'create' | 'edit';
 
 const DEFAULT_FORM_VALUE: CIConfigFormValue = {
   name: '',
-  imageRegistry: '',
   imageTagRuleType: 'branch',
   imageTagTemplate: '',
   withTimestamp: true,
   withCommit: false,
   makefilePath: './Makefile',
-  makeCommand: 'build',
+  makeCommand: 'make build',
   dockerfilePath: './Dockerfile',
 };
 
+function normalizeCIErrorMessage(value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return normalized;
+  }
+
+  const referencedMatch = normalized.match(/^ci config is referenced by (\d+) deploy plans and cannot be deleted$/i);
+  if (referencedMatch) {
+    return `该 CI 配置已被 ${referencedMatch[1]} 个部署计划引用，禁止删除`;
+  }
+  if (/^ci config not found$/i.test(normalized)) {
+    return 'CI 配置不存在';
+  }
+
+  return normalized;
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message.trim()) {
-    return error.message;
+    return normalizeCIErrorMessage(error.message);
   }
   return fallback;
 }

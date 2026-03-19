@@ -1,5 +1,7 @@
-import { Button, Drawer, Form, Input, Radio, Select, Space, Switch, Typography } from 'antd';
+import { Button, Drawer, Form, Input, Modal, Radio, Select, Space, Switch, Typography } from 'antd';
 import { useEffect, useState } from 'react';
+import { EnvTag } from '../common/EnvTag';
+import { formatDateTimeYMDHM } from '../../lib/date-time';
 import type { CDConfig } from '../../mock';
 import type { CDConfigFormValue } from '../../lib/metahub-cd-config';
 
@@ -64,6 +66,7 @@ export function CDConfigDrawer({
   }, [config, mode, open]);
 
   const isDetail = mode === 'detail';
+  const isCreate = mode === 'create';
   const isCanary = value.deploymentMode === '金丝雀发布';
   const title = mode === 'detail' ? 'CD 配置详情' : mode === 'create' ? '新建 CD 配置' : '编辑 CD 配置';
 
@@ -92,6 +95,135 @@ export function CDConfigDrawer({
     onSubmit(nextValue);
   };
 
+  const formContent = (
+    <Form layout="vertical" disabled={loading}>
+      <Form.Item label="名称" required>
+        <Input
+          aria-label="名称"
+          value={value.name}
+          onChange={(event) => setValue((prev) => ({ ...prev, name: event.target.value }))}
+          placeholder="例：cd-api-server-prod"
+        />
+      </Form.Item>
+      <Form.Item label="发布区域" required>
+        <Select
+          aria-label="发布区域"
+          value={value.releaseRegion}
+          onChange={(nextValue) => setValue((prev) => ({ ...prev, releaseRegion: nextValue }))}
+          options={[
+            { value: '华东', label: '华东' },
+            { value: '华北', label: '华北' },
+            { value: '新加坡', label: '新加坡' },
+          ]}
+        />
+      </Form.Item>
+      <Form.Item label="发布环境" required>
+        <Select
+          aria-label="发布环境"
+          value={value.releaseEnv}
+          onChange={(nextValue) => setValue((prev) => ({ ...prev, releaseEnv: nextValue }))}
+          options={[
+            { value: '开发', label: '开发' },
+            { value: '测试', label: '测试' },
+            { value: '灰度', label: '灰度' },
+            { value: '生产', label: '生产' },
+          ]}
+        />
+      </Form.Item>
+      <Form.Item label="发布策略" required>
+        <Radio.Group
+          aria-label="发布策略"
+          value={value.deploymentMode}
+          onChange={(event) =>
+            setValue((prev) => ({
+              ...prev,
+              deploymentMode: event.target.value,
+            }))
+          }
+          options={[
+            { value: '滚动发布', label: '滚动发布' },
+            { value: '金丝雀发布', label: '金丝雀发布' },
+          ]}
+          optionType="button"
+          buttonStyle="solid"
+        />
+      </Form.Item>
+      {isCanary ? (
+        <>
+          <Form.Item label="流量批次数" required>
+            <Input
+              aria-label="流量批次数"
+              type="number"
+              value={value.trafficBatchCount}
+              onChange={(event) =>
+                setValue((prev) => ({
+                  ...prev,
+                  trafficBatchCount: Number(event.target.value || 0),
+                }))
+              }
+            />
+          </Form.Item>
+          <Form.Item label="每批流量比例" required extra="使用逗号分隔，例如 10,30,60">
+            <Input
+              aria-label="每批流量比例"
+              value={trafficRatioInput}
+              onChange={(event) => setTrafficRatioInput(event.target.value)}
+              placeholder="10,30,60"
+            />
+          </Form.Item>
+          <Form.Item label="允许手动调整">
+            <Switch
+              aria-label="允许手动调整"
+              checked={Boolean(value.manualAdjust)}
+              onChange={(checked) => setValue((prev) => ({ ...prev, manualAdjust: checked }))}
+            />
+          </Form.Item>
+          <Form.Item label="手动调整超时时间（秒）">
+            <Input
+              aria-label="手动调整超时时间（秒）"
+              type="number"
+              value={value.adjustTimeoutSeconds}
+              onChange={(event) =>
+                setValue((prev) => ({
+                  ...prev,
+                  adjustTimeoutSeconds: Number(event.target.value || 0),
+                }))
+              }
+            />
+          </Form.Item>
+        </>
+      ) : null}
+    </Form>
+  );
+
+  if (!isDetail) {
+    return (
+      <Modal
+        open={open}
+        title={title}
+        onCancel={onClose}
+        footer={null}
+        width={680}
+        destroyOnHidden
+      >
+        {formContent}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Space>
+            <Button onClick={onClose}>取消</Button>
+            <Button
+              type="primary"
+              loading={submitting}
+              disabled={!value.name.trim()}
+              onClick={handleSubmit}
+            >
+              {isCreate ? '创建 CD 配置' : '保存修改'}
+            </Button>
+          </Space>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Drawer
       open={open}
@@ -109,7 +241,7 @@ export function CDConfigDrawer({
               disabled={!value.name.trim()}
               onClick={handleSubmit}
             >
-              {mode === 'create' ? '创建 CD 配置' : '保存修改'}
+              保存修改
             </Button>
           ) : null}
         </Space>
@@ -122,7 +254,7 @@ export function CDConfigDrawer({
           <Typography.Text strong>发布区域</Typography.Text>
           <Typography.Text>{config?.releaseRegion ?? '-'}</Typography.Text>
           <Typography.Text strong>发布环境</Typography.Text>
-          <Typography.Text>{config?.releaseEnv ?? '-'}</Typography.Text>
+          {config?.releaseEnv ? <EnvTag env={config.releaseEnv} /> : <Typography.Text>-</Typography.Text>}
           <Typography.Text strong>发布策略</Typography.Text>
           <Typography.Text>{config?.deploymentMode ?? '-'}</Typography.Text>
           <Typography.Text strong>策略摘要</Typography.Text>
@@ -134,109 +266,12 @@ export function CDConfigDrawer({
               : '无额外参数'}
           </Typography.Text>
           <Typography.Text strong>创建时间</Typography.Text>
-          <Typography.Text>{config?.createdAt ?? '-'}</Typography.Text>
+          <Typography.Text>{formatDateTimeYMDHM(config?.createdAt)}</Typography.Text>
           <Typography.Text strong>更新时间</Typography.Text>
-          <Typography.Text>{config?.updatedAt ?? '-'}</Typography.Text>
+          <Typography.Text>{formatDateTimeYMDHM(config?.updatedAt)}</Typography.Text>
         </Space>
       ) : (
-        <Form layout="vertical" disabled={loading}>
-          <Form.Item label="名称" required>
-            <Input
-              aria-label="名称"
-              value={value.name}
-              onChange={(event) => setValue((prev) => ({ ...prev, name: event.target.value }))}
-              placeholder="例：cd-api-server-prod"
-            />
-          </Form.Item>
-          <Form.Item label="发布区域" required>
-            <Select
-              aria-label="发布区域"
-              value={value.releaseRegion}
-              onChange={(nextValue) => setValue((prev) => ({ ...prev, releaseRegion: nextValue }))}
-              options={[
-                { value: '华东', label: '华东' },
-                { value: '华北', label: '华北' },
-                { value: '新加坡', label: '新加坡' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="发布环境" required>
-            <Select
-              aria-label="发布环境"
-              value={value.releaseEnv}
-              onChange={(nextValue) => setValue((prev) => ({ ...prev, releaseEnv: nextValue }))}
-              options={[
-                { value: '开发', label: '开发' },
-                { value: '测试', label: '测试' },
-                { value: '灰度', label: '灰度' },
-                { value: '生产', label: '生产' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="发布策略" required>
-            <Radio.Group
-              aria-label="发布策略"
-              value={value.deploymentMode}
-              onChange={(event) =>
-                setValue((prev) => ({
-                  ...prev,
-                  deploymentMode: event.target.value,
-                }))
-              }
-              options={[
-                { value: '滚动发布', label: '滚动发布' },
-                { value: '金丝雀发布', label: '金丝雀发布' },
-              ]}
-              optionType="button"
-              buttonStyle="solid"
-            />
-          </Form.Item>
-          {isCanary ? (
-            <>
-              <Form.Item label="流量批次数" required>
-                <Input
-                  aria-label="流量批次数"
-                  type="number"
-                  value={value.trafficBatchCount}
-                  onChange={(event) =>
-                    setValue((prev) => ({
-                      ...prev,
-                      trafficBatchCount: Number(event.target.value || 0),
-                    }))
-                  }
-                />
-              </Form.Item>
-              <Form.Item label="每批流量比例" required extra="使用逗号分隔，例如 10,30,60">
-                <Input
-                  aria-label="每批流量比例"
-                  value={trafficRatioInput}
-                  onChange={(event) => setTrafficRatioInput(event.target.value)}
-                  placeholder="10,30,60"
-                />
-              </Form.Item>
-              <Form.Item label="允许手动调整">
-                <Switch
-                  aria-label="允许手动调整"
-                  checked={Boolean(value.manualAdjust)}
-                  onChange={(checked) => setValue((prev) => ({ ...prev, manualAdjust: checked }))}
-                />
-              </Form.Item>
-              <Form.Item label="手动调整超时时间（秒）">
-                <Input
-                  aria-label="手动调整超时时间（秒）"
-                  type="number"
-                  value={value.adjustTimeoutSeconds}
-                  onChange={(event) =>
-                    setValue((prev) => ({
-                      ...prev,
-                      adjustTimeoutSeconds: Number(event.target.value || 0),
-                    }))
-                  }
-                />
-              </Form.Item>
-            </>
-          ) : null}
-        </Form>
+        formContent
       )}
     </Drawer>
   );
