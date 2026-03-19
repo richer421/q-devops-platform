@@ -69,6 +69,75 @@ type UpsertCDConfigRequest = {
 
 const METAHUB_BASE_URL = (import.meta.env.VITE_METAHUB_BASE_URL as string | undefined)?.trim() ?? '';
 
+const releaseRegionLabelToCode: Record<string, string> = {
+  华东: 'cn-east',
+  华北: 'cn-north',
+  新加坡: 'ap-singapore',
+};
+
+const releaseRegionCodeToLabel: Record<string, string> = {
+  'cn-east': '华东',
+  'cn-north': '华北',
+  'ap-singapore': '新加坡',
+};
+
+const releaseEnvLabelToCode: Record<string, string> = {
+  开发: 'dev',
+  测试: 'test',
+  灰度: 'gray',
+  生产: 'prod',
+};
+
+const releaseEnvCodeToLabel: Record<string, string> = {
+  dev: '开发',
+  test: '测试',
+  gray: '灰度',
+  prod: '生产',
+};
+
+const deploymentModeLabelToCode: Record<string, string> = {
+  滚动发布: 'rolling',
+  金丝雀发布: 'canary',
+};
+
+const deploymentModeCodeToLabel: Record<string, string> = {
+  rolling: '滚动发布',
+  canary: '金丝雀发布',
+};
+
+function normalizeReleaseRegion(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '全部' || trimmed.toLowerCase() === 'all') {
+    return undefined;
+  }
+  return releaseRegionLabelToCode[trimmed] ?? trimmed;
+}
+
+function normalizeReleaseEnv(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '全部' || trimmed.toLowerCase() === 'all') {
+    return undefined;
+  }
+  return releaseEnvLabelToCode[trimmed] ?? trimmed;
+}
+
+function normalizeDeploymentMode(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '全部' || trimmed.toLowerCase() === 'all') {
+    return undefined;
+  }
+  return deploymentModeLabelToCode[trimmed] ?? trimmed;
+}
+
 function withBase(path: string) {
   if (!METAHUB_BASE_URL) {
     return path;
@@ -111,9 +180,9 @@ export function cdConfigFromMetahub(dto: MetahubCDConfigDTO): CDConfig {
     id: String(dto.id),
     buId: String(dto.business_unit_id),
     name: dto.name,
-    releaseRegion: dto.release_region as CDConfig['releaseRegion'],
-    releaseEnv: dto.release_env as CDConfig['releaseEnv'],
-    deploymentMode: dto.deployment_mode as CDConfig['deploymentMode'],
+    releaseRegion: (releaseRegionCodeToLabel[dto.release_region] ?? dto.release_region) as CDConfig['releaseRegion'],
+    releaseEnv: (releaseEnvCodeToLabel[dto.release_env] ?? dto.release_env) as CDConfig['releaseEnv'],
+    deploymentMode: (deploymentModeCodeToLabel[dto.deployment_mode] ?? dto.deployment_mode) as CDConfig['deploymentMode'],
     strategySummary: dto.strategy_summary,
     trafficBatchCount: dto.traffic_batch_count,
     trafficRatioList: dto.traffic_ratio_list,
@@ -125,15 +194,16 @@ export function cdConfigFromMetahub(dto: MetahubCDConfigDTO): CDConfig {
 }
 
 export function cdConfigToMetahubPayload(value: CDConfigFormValue): UpsertCDConfigRequest {
+  const deploymentMode = normalizeDeploymentMode(value.deploymentMode) ?? '';
   return {
     name: value.name.trim(),
-    release_region: value.releaseRegion,
-    release_env: value.releaseEnv,
-    deployment_mode: value.deploymentMode,
-    traffic_batch_count: value.deploymentMode === '金丝雀发布' ? value.trafficBatchCount : undefined,
-    traffic_ratio_list: value.deploymentMode === '金丝雀发布' ? value.trafficRatioList : undefined,
-    manual_adjust: value.deploymentMode === '金丝雀发布' ? value.manualAdjust : undefined,
-    adjust_timeout_seconds: value.deploymentMode === '金丝雀发布' ? value.adjustTimeoutSeconds : undefined,
+    release_region: normalizeReleaseRegion(value.releaseRegion) ?? value.releaseRegion,
+    release_env: normalizeReleaseEnv(value.releaseEnv) ?? value.releaseEnv,
+    deployment_mode: deploymentMode || value.deploymentMode,
+    traffic_batch_count: deploymentMode === 'canary' ? value.trafficBatchCount : undefined,
+    traffic_ratio_list: deploymentMode === 'canary' ? value.trafficRatioList : undefined,
+    manual_adjust: deploymentMode === 'canary' ? value.manualAdjust : undefined,
+    adjust_timeout_seconds: deploymentMode === 'canary' ? value.adjustTimeoutSeconds : undefined,
   };
 }
 
@@ -147,14 +217,17 @@ export async function listBusinessUnitCDConfigs(
   if (filters.keyword?.trim()) {
     query.set('keyword', filters.keyword.trim());
   }
-  if (filters.releaseRegion && filters.releaseRegion !== '全部') {
-    query.set('release_region', filters.releaseRegion);
+  const releaseRegion = normalizeReleaseRegion(filters.releaseRegion);
+  if (releaseRegion) {
+    query.set('release_region', releaseRegion);
   }
-  if (filters.releaseEnv && filters.releaseEnv !== '全部') {
-    query.set('release_env', filters.releaseEnv);
+  const releaseEnv = normalizeReleaseEnv(filters.releaseEnv);
+  if (releaseEnv) {
+    query.set('release_env', releaseEnv);
   }
-  if (filters.deploymentMode && filters.deploymentMode !== '全部') {
-    query.set('deployment_mode', filters.deploymentMode);
+  const deploymentMode = normalizeDeploymentMode(filters.deploymentMode);
+  if (deploymentMode) {
+    query.set('deployment_mode', deploymentMode);
   }
 
   const dto = await request<MetahubCDConfigPageDTO>(`/api/v1/business-units/${businessUnitID}/cd-configs?${query.toString()}`);

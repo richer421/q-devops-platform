@@ -158,11 +158,9 @@ describe('config tables', () => {
     const ciCssText = ciContainer.querySelector('style')?.textContent ?? '';
     const cdCssText = cdContainer.querySelector('style')?.textContent ?? '';
     expect(ciCssText).toContain('margin-block-start: auto');
-    expect(ciCssText).toContain('padding-block-start: 10px');
-    expect(ciCssText).toContain('padding-block-end: 6px');
+    expect(ciCssText).toContain('margin-block-end: 8px');
     expect(cdCssText).toContain('margin-block-start: auto');
-    expect(cdCssText).toContain('padding-block-start: 10px');
-    expect(cdCssText).toContain('padding-block-end: 6px');
+    expect(cdCssText).toContain('margin-block-end: 8px');
     expect(instanceContainer.querySelector('style')?.textContent ?? '').toContain('margin-block-start: auto');
   });
 

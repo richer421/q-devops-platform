@@ -48,6 +48,8 @@ export function CIConfigTablePanel({
   onEdit,
   onDelete,
 }: CIConfigTablePanelProps) {
+  const isEmpty = items.length === 0;
+
   const columns = useMemo<ColumnsType<CIConfigItem>>(
     () => [
       {
@@ -145,6 +147,7 @@ export function CIConfigTablePanel({
       current: page,
       pageSize,
       total,
+      hideOnSinglePage: false,
       showSizeChanger: true,
       pageSizeOptions: [10, 25, 50, 100],
       position: ['bottomCenter'],
@@ -159,6 +162,7 @@ export function CIConfigTablePanel({
   return (
     <div
       data-ci-config-panel="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -193,7 +197,7 @@ export function CIConfigTablePanel({
         </Button>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<CIConfigItem>
           rowKey={(record) => record.id}
           columns={columns}
@@ -201,10 +205,10 @@ export function CIConfigTablePanel({
           pagination={pagination}
           loading={loading}
           tableLayout="fixed"
-          scroll={{ x: 1220 }}
+          scroll={isEmpty ? { x: 1220, y: '100%' } : { x: 1220 }}
           size="middle"
           locale={{
-            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 CI 配置" />,
+            emptyText: <Empty description="暂无 CI 配置" />,
           }}
           onChange={handleTableChange}
         />
@@ -218,10 +222,49 @@ export function CIConfigTablePanel({
           display: flex;
           flex-direction: column;
         }
+        [data-ci-config-panel='true'] .ant-table,
+        [data-ci-config-panel='true'] .ant-table-container,
+        [data-ci-config-panel='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-ci-config-panel='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-container,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-content,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-content > table,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-body > table > tbody,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-tbody,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td,
+        [data-ci-config-panel='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+        }
+        [data-ci-config-panel='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          padding: 0 !important;
+        }
+        [data-ci-config-panel='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-ci-config-panel='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
-          padding-block-start: 10px;
-          padding-block-end: 6px;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>

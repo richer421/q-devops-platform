@@ -58,6 +58,7 @@ function createDefaultTableParams(): LocalTableParams {
     pagination: {
       current: 1,
       pageSize: DEFAULT_PAGE_SIZE,
+      hideOnSinglePage: false,
       showSizeChanger: true,
       pageSizeOptions: [10, 25, 50, 100],
       position: ['bottomCenter'],
@@ -74,6 +75,7 @@ function createTableChangeHandler<T>(
       pagination: {
         ...pagination,
         total,
+        hideOnSinglePage: false,
         showSizeChanger: true,
         pageSizeOptions: [10, 25, 50, 100],
         position: ['bottomCenter'],
@@ -171,9 +173,12 @@ export function CIConfigsTable({ configs }: CIConfigsTableProps) {
     [],
   );
 
+  const isEmpty = dataSource.length === 0;
+
   return (
     <div
       data-ci-configs-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -193,15 +198,15 @@ export function CIConfigsTable({ configs }: CIConfigsTableProps) {
           allowClear
         />
       </div>
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<CIConfig>
           rowKey={(record) => record.id}
           columns={columns}
           dataSource={dataSource}
           pagination={tableParams.pagination}
-          scroll={{ x: 960 }}
+          scroll={isEmpty ? { x: 960, y: '100%' } : { x: 960 }}
           size="middle"
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 CI 配置" /> }}
+          locale={{ emptyText: <Empty description="暂无 CI 配置" /> }}
           onChange={createTableChangeHandler<CIConfig>(filteredConfigs.length, setTableParams)}
         />
       </div>
@@ -213,10 +218,53 @@ export function CIConfigsTable({ configs }: CIConfigsTableProps) {
           display: flex;
           flex-direction: column;
         }
+        [data-ci-configs-table='true'] .ant-table,
+        [data-ci-configs-table='true'] .ant-table-container,
+        [data-ci-configs-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-ci-configs-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-container,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-content,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-ci-configs-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
-          padding-block-start: 10px;
-          padding-block-end: 6px;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>
@@ -243,6 +291,8 @@ export function CDConfigsTable({
   onEdit,
   onDelete,
 }: CDConfigsTableProps) {
+  const isEmpty = configs.length === 0;
+
   const columns: ColumnsType<CDConfig> = useMemo(
     () => [
       {
@@ -312,6 +362,7 @@ export function CDConfigsTable({
   return (
     <div
       data-cd-configs-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -380,7 +431,7 @@ export function CDConfigsTable({
           新建 CD 配置
         </Button>
       </div>
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<CDConfig>
           rowKey={(record) => record.id}
           columns={columns}
@@ -390,13 +441,14 @@ export function CDConfigsTable({
             current: page,
             pageSize,
             total,
+            hideOnSinglePage: false,
             showSizeChanger: true,
             pageSizeOptions: [10, 25, 50, 100],
             position: ['bottomCenter'],
           }}
-          scroll={{ x: 960 }}
+          scroll={isEmpty ? { x: 960, y: '100%' } : { x: 960 }}
           size="middle"
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 CD 配置" /> }}
+          locale={{ emptyText: <Empty description="暂无 CD 配置" /> }}
           onChange={(pagination) => onPageChange(pagination.current ?? 1, pagination.pageSize ?? 10)}
         />
       </div>
@@ -408,10 +460,53 @@ export function CDConfigsTable({
           display: flex;
           flex-direction: column;
         }
+        [data-cd-configs-table='true'] .ant-table,
+        [data-cd-configs-table='true'] .ant-table-container,
+        [data-cd-configs-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-cd-configs-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-container,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-content,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-cd-configs-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
-          padding-block-start: 10px;
-          padding-block-end: 6px;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>
@@ -508,9 +603,12 @@ export function InstancesTable({ instances }: InstancesTableProps) {
     [],
   );
 
+  const isEmpty = dataSource.length === 0;
+
   return (
     <div
       data-instances-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -530,15 +628,15 @@ export function InstancesTable({ instances }: InstancesTableProps) {
           allowClear
         />
       </div>
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<Instance>
           rowKey={(record) => record.id}
           columns={columns}
           dataSource={dataSource}
           pagination={tableParams.pagination}
-          scroll={{ x: 1040 }}
+          scroll={isEmpty ? { x: 1040, y: '100%' } : { x: 1040 }}
           size="middle"
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无实例" /> }}
+          locale={{ emptyText: <Empty description="暂无实例" /> }}
           onChange={createTableChangeHandler<Instance>(filteredInstances.length, setTableParams)}
         />
       </div>
@@ -550,8 +648,53 @@ export function InstancesTable({ instances }: InstancesTableProps) {
           display: flex;
           flex-direction: column;
         }
+        [data-instances-table='true'] .ant-table,
+        [data-instances-table='true'] .ant-table-container,
+        [data-instances-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-instances-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table,
+        [data-instances-table='true'][data-empty='true'] .ant-table-container,
+        [data-instances-table='true'][data-empty='true'] .ant-table-content,
+        [data-instances-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-instances-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-instances-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-instances-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>

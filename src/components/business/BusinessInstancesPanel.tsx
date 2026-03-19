@@ -1321,65 +1321,20 @@ function PodsView({
     [expandedRowKeys, onOpenDialog],
   );
 
-  if (dataSource.length === 0) {
-    return (
-      <Card
-        styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } }}
-        style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `${podTableGrid.name}px ${podTableGrid.status}px ${podTableGrid.restart}px ${podTableGrid.podIP}px ${podTableGrid.node}px ${podTableGrid.actions}px`,
-            borderBottom: '1px solid #F2F3F5',
-            overflowX: 'auto',
-          }}
-        >
-          {['Pod 名称', '状态', '重启', 'Pod IP', '节点', '操作'].map((title) => (
-            <div
-              key={title}
-              style={{
-                padding: '12px 16px',
-                fontSize: 14,
-                fontWeight: 600,
-                color: '#1D2129',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {title}
-            </div>
-          ))}
-        </div>
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '24px 16px',
-          }}
-        >
-          <Empty description="暂无 Pod" />
-        </div>
-      </Card>
-    );
-  }
-
   return (
     <Card
       styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } }}
       style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
     >
-      <div data-pod-table="true" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div data-pod-table="true" data-empty={dataSource.length === 0 ? 'true' : 'false'} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Table<PodTableRow>
           size="small"
           rowKey="key"
           columns={columns}
           dataSource={dataSource}
           pagination={false}
-          scroll={{ x: 822 }}
-          locale={{ emptyText: null }}
+          scroll={dataSource.length === 0 ? { x: 822, y: '100%' } : { x: 822 }}
+          locale={{ emptyText: <Empty description="暂无 Pod" /> }}
           expandable={{
             expandedRowKeys,
             onExpandedRowsChange: (keys) => setExpandedRowKeys([...keys]),
@@ -1405,6 +1360,29 @@ function PodsView({
             padding-bottom: 10px;
           }
 
+          [data-pod-table='true'][data-empty='true'] .ant-table-tbody {
+            height: 100%;
+          }
+
+          [data-pod-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+            height: 100%;
+          }
+
+          [data-pod-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+            padding: 0 !important;
+            height: 100%;
+            vertical-align: middle;
+          }
+
+          [data-pod-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+            margin: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+          }
+
           [data-pod-table='true'] .ant-table-expanded-row > td {
             background: #fff;
             padding: 8px 12px !important;
@@ -1419,24 +1397,27 @@ function PodsView({
           [data-pod-table='true'] .ant-spin-nested-loading,
           [data-pod-table='true'] .ant-spin-container,
           [data-pod-table='true'] .ant-table,
-          [data-pod-table='true'] .ant-table-container {
-            height: 100%;
-          }
-
-          [data-pod-table='true'] .ant-table-wrapper,
-          [data-pod-table='true'] .ant-spin-nested-loading,
-          [data-pod-table='true'] .ant-spin-container,
-          [data-pod-table='true'] .ant-table,
           [data-pod-table='true'] .ant-table-container,
-          [data-pod-table='true'] .ant-table-content {
+          [data-pod-table='true'] .ant-table-content,
+          [data-pod-table='true'] .ant-table-body {
             display: flex;
             flex-direction: column;
             min-height: 0;
             flex: 1;
           }
 
-          [data-pod-table='true'] .ant-table-content {
-            justify-content: stretch;
+          [data-pod-table='true'][data-empty='true'] .ant-table,
+          [data-pod-table='true'][data-empty='true'] .ant-table-container,
+          [data-pod-table='true'][data-empty='true'] .ant-table-content,
+          [data-pod-table='true'][data-empty='true'] .ant-table-body,
+          [data-pod-table='true'][data-empty='true'] .ant-table-content > table,
+          [data-pod-table='true'][data-empty='true'] .ant-table-body > table {
+            height: 100%;
+          }
+
+          [data-pod-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+          [data-pod-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+            height: 100%;
           }
 
           [data-pod-table='true'] .ant-table-body {
@@ -1475,17 +1456,18 @@ function TableBottomPagination({
   );
 
   return (
-    <div data-bottom-pagination="true" style={{ marginTop: 'auto', paddingTop: 10, paddingBottom: 6 }}>
+    <div data-bottom-pagination="true" style={{ marginTop: 'auto', paddingTop: 10 }}>
       <Table<PaginationRow>
         rowKey="key"
         columns={columns}
-        dataSource={[{ key: 'pagination-only' }]}
+        dataSource={[]}
         showHeader={false}
+        size="middle"
         pagination={{
           current,
           pageSize,
           total,
-          size: 'small',
+          hideOnSinglePage: false,
           showSizeChanger: true,
           pageSizeOptions,
           position: ['bottomCenter'],
@@ -1495,6 +1477,11 @@ function TableBottomPagination({
       />
       <style>
         {`
+          [data-bottom-pagination='true'] {
+            display: flex;
+            flex-direction: column;
+          }
+
           [data-bottom-pagination='true'] .ant-table {
             display: none;
           }
@@ -1508,21 +1495,7 @@ function TableBottomPagination({
 
           [data-bottom-pagination='true'] .ant-table-pagination.ant-pagination {
             margin-block-start: auto;
-          }
-
-          [data-bottom-pagination='true'] .ant-pagination-item,
-          [data-bottom-pagination='true'] .ant-pagination-prev,
-          [data-bottom-pagination='true'] .ant-pagination-next {
-            min-width: 24px;
-            height: 24px;
-            line-height: 22px;
-          }
-
-          [data-bottom-pagination='true'] .ant-pagination-prev .ant-pagination-item-link,
-          [data-bottom-pagination='true'] .ant-pagination-next .ant-pagination-item-link {
-            width: 24px;
-            height: 24px;
-            line-height: 22px;
+            margin-block-end: 8px;
           }
         `}
       </style>

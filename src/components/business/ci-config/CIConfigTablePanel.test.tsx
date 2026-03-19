@@ -58,8 +58,7 @@ describe('ci config table panel', () => {
     expect(screen.getByRole('columnheader', { name: '操作' })).toHaveClass('ant-table-cell-fix-right');
     const cssText = container.querySelector('style')?.textContent ?? '';
     expect(cssText).toContain('margin-block-start: auto');
-    expect(cssText).toContain('padding-block-start: 10px');
-    expect(cssText).toContain('padding-block-end: 6px');
+    expect(cssText).toContain('margin-block-end: 8px');
 
     fireEvent.click(screen.getByRole('button', { name: '新建 CI 配置' }));
     fireEvent.click(screen.getByRole('button', { name: '详情' }));

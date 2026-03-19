@@ -43,6 +43,8 @@ export function BusinessTable({
   onKeywordChange,
   onPageChange,
 }: BusinessTableProps) {
+  const isEmpty = businesses.length === 0;
+
   const columns: ColumnsType<BusinessTableRow> = useMemo(
     () => [
       {
@@ -181,6 +183,7 @@ export function BusinessTable({
   return (
     <div
       data-business-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -210,7 +213,7 @@ export function BusinessTable({
         />
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<BusinessTableRow>
           rowKey={(record) => record.id}
           columns={columns}
@@ -220,14 +223,15 @@ export function BusinessTable({
             current: page,
             pageSize,
             total,
+            hideOnSinglePage: false,
             showSizeChanger: true,
             pageSizeOptions: [10, 25, 50, 100],
             position: ['bottomCenter'],
           }}
           tableLayout="auto"
-          scroll={{ x: 850 }}
+          scroll={isEmpty ? { x: 850, y: '100%' } : { x: 850 }}
           size="middle"
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无业务单元" /> }}
+          locale={{ emptyText: <Empty description="暂无业务单元" /> }}
           onChange={handleTableChange}
         />
       </div>
@@ -240,8 +244,53 @@ export function BusinessTable({
           display: flex;
           flex-direction: column;
         }
+        [data-business-table='true'] .ant-table,
+        [data-business-table='true'] .ant-table-container,
+        [data-business-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-business-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table,
+        [data-business-table='true'][data-empty='true'] .ant-table-container,
+        [data-business-table='true'][data-empty='true'] .ant-table-content,
+        [data-business-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-business-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-business-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-business-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>

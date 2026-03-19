@@ -52,6 +52,7 @@ export function DeployPlansTable({ plans }: DeployPlansTableProps) {
     pagination: {
       current: 1,
       pageSize: DEFAULT_PAGE_SIZE,
+      hideOnSinglePage: false,
       showSizeChanger: true,
       pageSizeOptions: [10, 25, 50, 100],
       position: ['bottomCenter'],
@@ -162,6 +163,7 @@ export function DeployPlansTable({ plans }: DeployPlansTableProps) {
       pagination: {
         ...pagination,
         total: filteredPlans.length,
+        hideOnSinglePage: false,
         showSizeChanger: true,
         pageSizeOptions: [10, 25, 50, 100],
         position: ['bottomCenter'],
@@ -169,9 +171,12 @@ export function DeployPlansTable({ plans }: DeployPlansTableProps) {
     });
   };
 
+  const isEmpty = dataSource.length === 0;
+
   return (
     <div
       data-deploy-plans-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -198,16 +203,16 @@ export function DeployPlansTable({ plans }: DeployPlansTableProps) {
         />
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<DeployPlan>
           rowKey={(record) => record.id}
           columns={columns}
           dataSource={dataSource}
           pagination={tableParams.pagination}
-          scroll={{ x: 1080 }}
+          scroll={isEmpty ? { x: 1080, y: '100%' } : { x: 1080 }}
           size="middle"
           locale={{
-            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无部署计划" />,
+            emptyText: <Empty description="暂无部署计划" />,
           }}
           onChange={handleTableChange}
         />
@@ -221,10 +226,53 @@ export function DeployPlansTable({ plans }: DeployPlansTableProps) {
           display: flex;
           flex-direction: column;
         }
+        [data-deploy-plans-table='true'] .ant-table,
+        [data-deploy-plans-table='true'] .ant-table-container,
+        [data-deploy-plans-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-deploy-plans-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table,
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-container,
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-content,
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-deploy-plans-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-deploy-plans-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
-          padding-block-start: 10px;
-          padding-block-end: 6px;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>
