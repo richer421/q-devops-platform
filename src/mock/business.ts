@@ -32,9 +32,16 @@ export type CDConfig = {
   id: string;
   buId: string;
   name: string;
-  renderEngine: string;
-  releaseMode: string;
-  gitOpsRepo: string;
+  releaseRegion: '华东' | '华北' | '新加坡';
+  releaseEnv: '开发' | '测试' | '灰度' | '生产';
+  deploymentMode: '滚动发布' | '金丝雀发布';
+  strategySummary: string;
+  trafficBatchCount?: number;
+  trafficRatioList?: number[];
+  manualAdjust?: boolean;
+  adjustTimeoutSeconds?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type InstanceEnvVar = {
@@ -259,41 +266,60 @@ export const cdConfigs: CDConfig[] = [
     id: 'cd-001',
     buId: 'bu-001',
     name: 'cd-api-server-dev',
-    renderEngine: 'Helm',
-    releaseMode: 'rolling',
-    gitOpsRepo: 'gitops.example.io/api-server/dev',
+    releaseRegion: '华东',
+    releaseEnv: '开发',
+    deploymentMode: '滚动发布',
+    strategySummary: '滚动发布（默认策略）',
+    createdAt: '2026-03-10T10:00:00Z',
+    updatedAt: '2026-03-15T09:30:00Z',
   },
   {
     id: 'cd-002',
     buId: 'bu-001',
     name: 'cd-api-server-prod',
-    renderEngine: 'Helm',
-    releaseMode: 'canary',
-    gitOpsRepo: 'gitops.example.io/api-server/prod',
+    releaseRegion: '华北',
+    releaseEnv: '生产',
+    deploymentMode: '金丝雀发布',
+    strategySummary: '3 批次 / 10%,30%,60%',
+    trafficBatchCount: 3,
+    trafficRatioList: [10, 30, 60],
+    manualAdjust: true,
+    adjustTimeoutSeconds: 300,
+    createdAt: '2026-03-11T11:00:00Z',
+    updatedAt: '2026-03-16T11:20:00Z',
   },
   {
     id: 'cd-003',
     buId: 'bu-002',
     name: 'cd-web-app-dev',
-    renderEngine: 'Helm',
-    releaseMode: 'rolling',
-    gitOpsRepo: 'gitops.example.io/web-app/dev',
+    releaseRegion: '华东',
+    releaseEnv: '开发',
+    deploymentMode: '滚动发布',
+    strategySummary: '滚动发布（默认策略）',
+    createdAt: '2026-03-12T09:00:00Z',
+    updatedAt: '2026-03-16T08:40:00Z',
   },
   {
     id: 'cd-004',
     buId: 'bu-002',
     name: 'cd-web-app-prod',
-    renderEngine: 'Helm',
-    releaseMode: 'rolling',
-    gitOpsRepo: 'gitops.example.io/web-app/prod',
+    releaseRegion: '新加坡',
+    releaseEnv: '生产',
+    deploymentMode: '滚动发布',
+    strategySummary: '滚动发布（默认策略）',
+    createdAt: '2026-03-12T11:20:00Z',
+    updatedAt: '2026-03-17T10:10:00Z',
   },
   {
     id: 'cd-005',
     buId: 'bu-003',
     name: 'cd-worker-prod',
-    renderEngine: 'Helm',
-    releaseMode: 'rolling',
-    gitOpsRepo: 'gitops.example.io/worker/prod',
+    releaseRegion: '华北',
+    releaseEnv: '生产',
+    deploymentMode: '滚动发布',
+    strategySummary: '滚动发布（默认策略）',
+    createdAt: '2026-03-13T08:00:00Z',
+    updatedAt: '2026-03-17T09:15:00Z',
   },
 ];
 

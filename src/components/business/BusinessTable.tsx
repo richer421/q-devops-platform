@@ -1,86 +1,51 @@
 import { LinkOutlined } from '@ant-design/icons';
 import { Button, Empty, Input, Space, Table, Tag, Typography } from 'antd';
-import type { GetProp, TableProps } from 'antd';
+import type { TableProps } from 'antd';
 import { Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import type { BusinessUnit } from '../../mock';
+import { useMemo } from 'react';
 
 type ColumnsType<T extends object = object> = TableProps<T>['columns'];
-type TablePaginationConfig = Exclude<GetProp<TableProps, 'pagination'>, boolean>;
+
+export type BusinessTableRow = {
+  id: string;
+  name: string;
+  desc: string;
+  repoUrl: string;
+  projectName: string;
+  projectId: number;
+  status: 'active' | 'inactive';
+};
 
 type BusinessTableProps = {
-  businesses: ReadonlyArray<BusinessUnit>;
+  businesses: ReadonlyArray<BusinessTableRow>;
+  keyword: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  loading?: boolean;
   onOpenDetail: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onKeywordChange: (keyword: string) => void;
+  onPageChange: (page: number, pageSize: number) => void;
 };
-
-type BusinessTableParams = {
-  pagination?: TablePaginationConfig;
-};
-
-const DEFAULT_PAGE_SIZE = 10;
-
-function getFilteredBusinesses(items: ReadonlyArray<BusinessUnit>, keyword: string) {
-  const normalizedKeyword = keyword.trim().toLowerCase();
-
-  if (!normalizedKeyword) {
-    return [...items];
-  }
-
-  return items.filter(
-    (business) =>
-      business.name.toLowerCase().includes(normalizedKeyword) ||
-      business.desc.toLowerCase().includes(normalizedKeyword),
-  );
-}
-
-function getPagedBusinesses(items: ReadonlyArray<BusinessUnit>, params: BusinessTableParams) {
-  const current = params.pagination?.current ?? 1;
-  const pageSize = params.pagination?.pageSize ?? DEFAULT_PAGE_SIZE;
-  const start = (current - 1) * pageSize;
-
-  return items.slice(start, start + pageSize);
-}
 
 export function BusinessTable({
   businesses,
+  keyword,
+  page,
+  pageSize,
+  total,
+  loading = false,
   onOpenDetail,
   onEdit,
   onDelete,
+  onKeywordChange,
+  onPageChange,
 }: BusinessTableProps) {
-  const [keyword, setKeyword] = useState('');
-  const [tableParams, setTableParams] = useState<BusinessTableParams>({
-    pagination: {
-      current: 1,
-      pageSize: DEFAULT_PAGE_SIZE,
-      showSizeChanger: true,
-      pageSizeOptions: [10, 25, 50, 100],
-      position: ['bottomCenter'],
-    },
-  });
+  const isEmpty = businesses.length === 0;
 
-  const filteredBusinesses = useMemo(
-    () => getFilteredBusinesses(businesses, keyword),
-    [businesses, keyword],
-  );
-  const dataSource = useMemo(
-    () => getPagedBusinesses(filteredBusinesses, tableParams),
-    [filteredBusinesses, tableParams],
-  );
-
-  useEffect(() => {
-    setTableParams((current) => ({
-      ...current,
-      pagination: {
-        ...current.pagination,
-        current: 1,
-        total: filteredBusinesses.length,
-      },
-    }));
-  }, [keyword, filteredBusinesses.length]);
-
-  const columns: ColumnsType<BusinessUnit> = useMemo(
+  const columns: ColumnsType<BusinessTableRow> = useMemo(
     () => [
       {
         title: '名称',
@@ -211,21 +176,14 @@ export function BusinessTable({
     [onDelete, onEdit, onOpenDetail],
   );
 
-  const handleTableChange: TableProps<BusinessUnit>['onChange'] = (pagination) => {
-    setTableParams({
-      pagination: {
-        ...pagination,
-        total: filteredBusinesses.length,
-        showSizeChanger: true,
-        pageSizeOptions: [10, 25, 50, 100],
-        position: ['bottomCenter'],
-      },
-    });
+  const handleTableChange: TableProps<BusinessTableRow>['onChange'] = (pagination) => {
+    onPageChange(pagination.current ?? page, pagination.pageSize ?? pageSize);
   };
 
   return (
     <div
       data-business-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -247,7 +205,7 @@ export function BusinessTable({
       >
         <Input
           value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
+          onChange={(event) => onKeywordChange(event.target.value)}
           placeholder="搜索名称或描述"
           prefix={<Search size={14} />}
           style={{ width: 280 }}
@@ -255,16 +213,25 @@ export function BusinessTable({
         />
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
-        <Table<BusinessUnit>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+        <Table<BusinessTableRow>
           rowKey={(record) => record.id}
           columns={columns}
-          dataSource={dataSource}
-          pagination={tableParams.pagination}
+          dataSource={businesses}
+          loading={loading}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            hideOnSinglePage: false,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 25, 50, 100],
+            position: ['bottomCenter'],
+          }}
           tableLayout="auto"
-          scroll={{ x: 850 }}
+          scroll={isEmpty ? { x: 850, y: '100%' } : { x: 850 }}
           size="middle"
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无业务单元" /> }}
+          locale={{ emptyText: <Empty description="暂无业务单元" /> }}
           onChange={handleTableChange}
         />
       </div>
@@ -277,8 +244,53 @@ export function BusinessTable({
           display: flex;
           flex-direction: column;
         }
+        [data-business-table='true'] .ant-table,
+        [data-business-table='true'] .ant-table-container,
+        [data-business-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-business-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table,
+        [data-business-table='true'][data-empty='true'] .ant-table-container,
+        [data-business-table='true'][data-empty='true'] .ant-table-content,
+        [data-business-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-business-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-business-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-business-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-business-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>

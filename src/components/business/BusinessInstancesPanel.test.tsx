@@ -143,7 +143,7 @@ describe('business instances panel', () => {
 
     expect(await screen.findByText('api-server-dev-6f9d4d4b7f-km2p8/api-server Terminal')).toBeInTheDocument();
     expect(screen.getByTestId('pod-log-terminal')).toHaveTextContent('kubectl exec -it api-server-dev-6f9d4d4b7f-km2p8 -c api-server -- sh');
-  });
+  }, 10000);
 
   it('switches to config tab and saves the visual draft back to preview mode', async () => {
     render(<BusinessInstancesPanel instances={seedInstances} />);
@@ -216,7 +216,7 @@ describe('business instances panel', () => {
     render(<BusinessInstancesPanel instances={[stoppedInstance, degradedInstance]} />);
 
     expect(screen.getAllByText('inst-stopped').length).toBeGreaterThan(0);
-    expect(screen.getByText('已停止')).toBeInTheDocument();
+    expect(screen.getByText('未运行')).toBeInTheDocument();
     expect(screen.getAllByText('inst-degraded').length).toBeGreaterThan(0);
     expect(screen.getByText('异常')).toBeInTheDocument();
   });

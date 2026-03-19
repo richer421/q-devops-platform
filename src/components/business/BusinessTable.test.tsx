@@ -2,22 +2,32 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { BusinessTable } from './BusinessTable';
 
+function buildBusiness(index: number) {
+  return {
+    id: `bu-${index}`,
+    name: `service-${index}`,
+    desc: `description-${index}`,
+    repoUrl: `https://github.com/org/service-${index}`,
+    projectName: `service-${index}`,
+    projectId: 100 + index,
+    status: 'active' as const,
+  };
+}
+
 describe('business table', () => {
   it('renders the expected headers and row actions', async () => {
     render(
       <BusinessTable
-        businesses={[
-          {
-            id: 'bu-001',
-            name: 'api-server',
-            desc: '核心 REST API 服务',
-            repoUrl: 'https://github.com/org/api-server',
-            status: 'active',
-          },
-        ]}
+        businesses={[buildBusiness(1)]}
+        keyword=""
+        page={1}
+        pageSize={10}
+        total={1}
         onOpenDetail={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onKeywordChange={vi.fn()}
+        onPageChange={vi.fn()}
       />,
     );
 
@@ -27,28 +37,21 @@ describe('business table', () => {
     expect(screen.getByRole('button', { name: '详情' })).toBeInTheDocument();
   });
 
-  it('filters rows from the integrated search input', async () => {
+  it('emits the search keyword through the controlled callback', async () => {
+    const onKeywordChange = vi.fn();
+
     render(
       <BusinessTable
-        businesses={[
-          {
-            id: 'bu-001',
-            name: 'api-server',
-            desc: '核心 REST API 服务',
-            repoUrl: 'https://github.com/org/api-server',
-            status: 'active',
-          },
-          {
-            id: 'bu-002',
-            name: 'web-app',
-            desc: '前端 Web 单页应用',
-            repoUrl: 'https://github.com/org/web-app',
-            status: 'active',
-          },
-        ]}
+        businesses={[buildBusiness(1), buildBusiness(2)]}
+        keyword=""
+        page={1}
+        pageSize={10}
+        total={2}
         onOpenDetail={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onKeywordChange={onKeywordChange}
+        onPageChange={vi.fn()}
       />,
     );
 
@@ -56,52 +59,45 @@ describe('business table', () => {
       target: { value: 'web-app' },
     });
 
-    expect(await screen.findByText('web-app')).toBeInTheDocument();
-    expect(screen.queryByText('api-server')).toBeNull();
+    expect(onKeywordChange).toHaveBeenCalledWith('web-app');
   });
 
-  it('uses antd table pagination managed inside the component', async () => {
-    const businesses = Array.from({ length: 12 }, (_, index) => ({
-      id: `bu-${index + 1}`,
-      name: `service-${index + 1}`,
-      desc: `description-${index + 1}`,
-      repoUrl: `https://github.com/org/service-${index + 1}`,
-      status: 'active' as const,
-    }));
+  it('emits pagination changes through the controlled callback', async () => {
+    const onPageChange = vi.fn();
 
     render(
       <BusinessTable
-        businesses={businesses}
+        businesses={Array.from({ length: 10 }, (_, index) => buildBusiness(index + 1))}
+        keyword=""
+        page={1}
+        pageSize={10}
+        total={12}
         onOpenDetail={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onKeywordChange={vi.fn()}
+        onPageChange={onPageChange}
       />,
     );
 
-    expect(screen.getByText('service-10')).toBeInTheDocument();
-    expect(screen.queryByText('service-11')).toBeNull();
-
     fireEvent.click(screen.getByTitle('2'));
 
-    expect(await screen.findByText('service-11')).toBeInTheDocument();
-    expect(screen.queryByText('service-1')).toBeNull();
+    expect(onPageChange).toHaveBeenCalledWith(2, 10);
   });
 
   it('pins the pagination to the bottom of the table area', () => {
     const { container } = render(
       <BusinessTable
-        businesses={[
-          {
-            id: 'bu-001',
-            name: 'api-server',
-            desc: '核心 REST API 服务',
-            repoUrl: 'https://github.com/org/api-server',
-            status: 'active',
-          },
-        ]}
+        businesses={[buildBusiness(1)]}
+        keyword=""
+        page={1}
+        pageSize={10}
+        total={1}
         onOpenDetail={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onKeywordChange={vi.fn()}
+        onPageChange={vi.fn()}
       />,
     );
 
@@ -111,16 +107,16 @@ describe('business table', () => {
   it('fills the available width and centers the pagination', async () => {
     const { container } = render(
       <BusinessTable
-        businesses={Array.from({ length: 12 }, (_, index) => ({
-          id: `bu-${index + 1}`,
-          name: `service-${index + 1}`,
-          desc: `description-${index + 1}`,
-          repoUrl: `https://github.com/org/service-${index + 1}`,
-          status: 'active' as const,
-        }))}
+        businesses={Array.from({ length: 10 }, (_, index) => buildBusiness(index + 1))}
+        keyword=""
+        page={1}
+        pageSize={10}
+        total={12}
         onOpenDetail={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onKeywordChange={vi.fn()}
+        onPageChange={vi.fn()}
       />,
     );
 

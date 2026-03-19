@@ -1,8 +1,9 @@
-import { Empty, Input, Table, Tag, Typography } from 'antd';
+import { Button, Empty, Input, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { GetProp, TableProps } from 'antd';
-import { Search } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { CDConfig, CIConfig, Instance } from '../../mock';
+import { formatDateTimeYMDHM } from '../../lib/date-time';
 import { getInstanceStatusMeta } from '../../lib/status';
 import { EnvTag } from '../common/EnvTag';
 
@@ -15,6 +16,23 @@ type CIConfigsTableProps = {
 
 type CDConfigsTableProps = {
   configs: ReadonlyArray<CDConfig>;
+  keyword: string;
+  releaseRegion: string;
+  releaseEnv: string;
+  deploymentMode: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  loading?: boolean;
+  onKeywordChange: (value: string) => void;
+  onReleaseRegionChange: (value: string) => void;
+  onReleaseEnvChange: (value: string) => void;
+  onDeploymentModeChange: (value: string) => void;
+  onPageChange: (page: number, pageSize: number) => void;
+  onCreate: () => void;
+  onDetail: (config: CDConfig) => void;
+  onEdit: (config: CDConfig) => void;
+  onDelete: (config: CDConfig) => void;
 };
 
 type InstancesTableProps = {
@@ -40,6 +58,7 @@ function createDefaultTableParams(): LocalTableParams {
     pagination: {
       current: 1,
       pageSize: DEFAULT_PAGE_SIZE,
+      hideOnSinglePage: false,
       showSizeChanger: true,
       pageSizeOptions: [10, 25, 50, 100],
       position: ['bottomCenter'],
@@ -56,6 +75,7 @@ function createTableChangeHandler<T>(
       pagination: {
         ...pagination,
         total,
+        hideOnSinglePage: false,
         showSizeChanger: true,
         pageSizeOptions: [10, 25, 50, 100],
         position: ['bottomCenter'],
@@ -153,9 +173,12 @@ export function CIConfigsTable({ configs }: CIConfigsTableProps) {
     [],
   );
 
+  const isEmpty = dataSource.length === 0;
+
   return (
     <div
       data-ci-configs-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -175,15 +198,15 @@ export function CIConfigsTable({ configs }: CIConfigsTableProps) {
           allowClear
         />
       </div>
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<CIConfig>
           rowKey={(record) => record.id}
           columns={columns}
           dataSource={dataSource}
           pagination={tableParams.pagination}
-          scroll={{ x: 960 }}
+          scroll={isEmpty ? { x: 960, y: '100%' } : { x: 960 }}
           size="middle"
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 CI 配置" /> }}
+          locale={{ emptyText: <Empty description="暂无 CI 配置" /> }}
           onChange={createTableChangeHandler<CIConfig>(filteredConfigs.length, setTableParams)}
         />
       </div>
@@ -195,50 +218,80 @@ export function CIConfigsTable({ configs }: CIConfigsTableProps) {
           display: flex;
           flex-direction: column;
         }
+        [data-ci-configs-table='true'] .ant-table,
+        [data-ci-configs-table='true'] .ant-table-container,
+        [data-ci-configs-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-ci-configs-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-container,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-content,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-ci-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-ci-configs-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>
   );
 }
 
-export function CDConfigsTable({ configs }: CDConfigsTableProps) {
-  const [keyword, setKeyword] = useState('');
-  const [tableParams, setTableParams] = useState<LocalTableParams>(createDefaultTableParams);
-
-  const filteredConfigs = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
-
-    if (!normalizedKeyword) {
-      return [...configs];
-    }
-
-    return configs.filter((config) =>
-      [
-        config.name,
-        config.renderEngine,
-        config.releaseMode,
-        config.gitOpsRepo,
-      ].some((value) => String(value).toLowerCase().includes(normalizedKeyword)),
-    );
-  }, [configs, keyword]);
-
-  const dataSource = useMemo(
-    () => getPagedItems(filteredConfigs, tableParams),
-    [filteredConfigs, tableParams],
-  );
-
-  useEffect(() => {
-    setTableParams((current) => ({
-      ...current,
-      pagination: {
-        ...current.pagination,
-        current: 1,
-        total: filteredConfigs.length,
-      },
-    }));
-  }, [filteredConfigs.length, keyword]);
+export function CDConfigsTable({
+  configs,
+  keyword,
+  releaseRegion,
+  releaseEnv,
+  deploymentMode,
+  page,
+  pageSize,
+  total,
+  loading = false,
+  onKeywordChange,
+  onReleaseRegionChange,
+  onReleaseEnvChange,
+  onDeploymentModeChange,
+  onPageChange,
+  onCreate,
+  onDetail,
+  onEdit,
+  onDelete,
+}: CDConfigsTableProps) {
+  const isEmpty = configs.length === 0;
 
   const columns: ColumnsType<CDConfig> = useMemo(
     () => [
@@ -247,33 +300,69 @@ export function CDConfigsTable({ configs }: CDConfigsTableProps) {
         dataIndex: 'name',
         key: 'name',
         ellipsis: { showTitle: false },
+        width: 120,
         render: (value) => (
-          <Typography.Text ellipsis={{ tooltip: String(value) }} style={{ maxWidth: 220 }}>
+          <Typography.Text ellipsis={{ tooltip: String(value) }} style={{ width: 120 }}>
             {String(value)}
           </Typography.Text>
         ),
       },
-      { title: '渲染引擎', dataIndex: 'renderEngine', key: 'renderEngine', width: 120 },
-      { title: '发布策略', dataIndex: 'releaseMode', key: 'releaseMode', width: 120 },
+      { title: '发布区域', dataIndex: 'releaseRegion', key: 'releaseRegion', width: 120 },
       {
-        title: 'GitOps 仓库',
-        dataIndex: 'gitOpsRepo',
-        key: 'gitOpsRepo',
-        width: 300,
+        title: '发布环境',
+        dataIndex: 'releaseEnv',
+        key: 'releaseEnv',
+        width: 120,
+        render: (value: string) => <EnvTag env={value} />,
+      },
+      { title: '发布策略', dataIndex: 'deploymentMode', key: 'deploymentMode', width: 120 },
+      {
+        title: '策略摘要',
+        dataIndex: 'strategySummary',
+        key: 'strategySummary',
+        width: 260,
         ellipsis: { showTitle: false },
         render: (value) => (
-          <Typography.Text ellipsis={{ tooltip: String(value) }} style={{ maxWidth: 300 }}>
+          <Typography.Text ellipsis={{ tooltip: String(value) }} style={{ maxWidth: 260 }}>
             {String(value)}
           </Typography.Text>
+        ),
+      },
+      {
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        key: 'updatedAt',
+        width: 100,
+        render: (value: string | undefined) => formatDateTimeYMDHM(value),
+      },
+      {
+        title: '操作',
+        key: 'action',
+        align: 'center',
+        width: 184,
+        fixed: 'right',
+        render: (_, record) => (
+          <Space size={4}>
+            <Button type="link" onClick={() => onDetail(record)}>
+              详情
+            </Button>
+            <Tooltip title="编辑">
+              <Button type="text" aria-label={`编辑 ${record.name}`} icon={<Pencil size={14} />} onClick={() => onEdit(record)} />
+            </Tooltip>
+            <Tooltip title="删除">
+              <Button type="text" danger aria-label={`删除 ${record.name}`} icon={<Trash2 size={14} />} onClick={() => onDelete(record)} />
+            </Tooltip>
+          </Space>
         ),
       },
     ],
-    [],
+    [onDelete, onDetail, onEdit],
   );
 
   return (
     <div
       data-cd-configs-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -283,26 +372,84 @@ export function CDConfigsTable({ configs }: CDConfigsTableProps) {
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: 16, borderBottom: '1px solid #e5e6eb', flexShrink: 0 }}>
-        <Input
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
-          placeholder="搜索 CD 配置"
-          prefix={<Search size={14} />}
-          style={{ width: 280 }}
-          allowClear
-        />
+      <div
+        style={{
+          padding: 16,
+          borderBottom: '1px solid #e5e6eb',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          flexShrink: 0,
+        }}
+      >
+        <Space wrap size={12}>
+          <Input
+            value={keyword}
+            onChange={(event) => onKeywordChange(event.target.value)}
+            placeholder="搜索 CD 配置"
+            prefix={<Search size={14} />}
+            style={{ width: 240 }}
+            allowClear
+          />
+          <Select
+            value={releaseRegion}
+            onChange={onReleaseRegionChange}
+            style={{ width: 140 }}
+            options={[
+              { value: '全部', label: '全部区域' },
+              { value: '华东', label: '华东' },
+              { value: '华北', label: '华北' },
+              { value: '新加坡', label: '新加坡' },
+            ]}
+          />
+          <Select
+            value={releaseEnv}
+            onChange={onReleaseEnvChange}
+            style={{ width: 140 }}
+            options={[
+              { value: '全部', label: '全部环境' },
+              { value: '开发', label: '开发' },
+              { value: '测试', label: '测试' },
+              { value: '灰度', label: '灰度' },
+              { value: '生产', label: '生产' },
+            ]}
+          />
+          <Select
+            value={deploymentMode}
+            onChange={onDeploymentModeChange}
+            style={{ width: 140 }}
+            options={[
+              { value: '全部', label: '全部策略' },
+              { value: '滚动发布', label: '滚动发布' },
+              { value: '金丝雀发布', label: '金丝雀发布' },
+            ]}
+          />
+        </Space>
+        <Button type="primary" icon={<Plus size={14} />} onClick={onCreate}>
+          新建 CD 配置
+        </Button>
       </div>
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<CDConfig>
           rowKey={(record) => record.id}
           columns={columns}
-          dataSource={dataSource}
-          pagination={tableParams.pagination}
-          scroll={{ x: 960 }}
+          dataSource={configs}
+          loading={loading}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            hideOnSinglePage: false,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 25, 50, 100],
+            position: ['bottomCenter'],
+          }}
+          scroll={isEmpty ? { x: 960, y: '100%' } : { x: 960 }}
           size="middle"
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 CD 配置" /> }}
-          onChange={createTableChangeHandler<CDConfig>(filteredConfigs.length, setTableParams)}
+          locale={{ emptyText: <Empty description="暂无 CD 配置" /> }}
+          onChange={(pagination) => onPageChange(pagination.current ?? 1, pagination.pageSize ?? 10)}
         />
       </div>
       <style>{`
@@ -313,8 +460,53 @@ export function CDConfigsTable({ configs }: CDConfigsTableProps) {
           display: flex;
           flex-direction: column;
         }
+        [data-cd-configs-table='true'] .ant-table,
+        [data-cd-configs-table='true'] .ant-table-container,
+        [data-cd-configs-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-cd-configs-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-container,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-content,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-cd-configs-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-cd-configs-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>
@@ -411,9 +603,12 @@ export function InstancesTable({ instances }: InstancesTableProps) {
     [],
   );
 
+  const isEmpty = dataSource.length === 0;
+
   return (
     <div
       data-instances-table="true"
+      data-empty={isEmpty ? 'true' : 'false'}
       style={{
         height: '100%',
         minHeight: 0,
@@ -433,15 +628,15 @@ export function InstancesTable({ instances }: InstancesTableProps) {
           allowClear
         />
       </div>
-      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
         <Table<Instance>
           rowKey={(record) => record.id}
           columns={columns}
           dataSource={dataSource}
           pagination={tableParams.pagination}
-          scroll={{ x: 1040 }}
+          scroll={isEmpty ? { x: 1040, y: '100%' } : { x: 1040 }}
           size="middle"
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无实例" /> }}
+          locale={{ emptyText: <Empty description="暂无实例" /> }}
           onChange={createTableChangeHandler<Instance>(filteredInstances.length, setTableParams)}
         />
       </div>
@@ -453,8 +648,53 @@ export function InstancesTable({ instances }: InstancesTableProps) {
           display: flex;
           flex-direction: column;
         }
+        [data-instances-table='true'] .ant-table,
+        [data-instances-table='true'] .ant-table-container,
+        [data-instances-table='true'] .ant-table-content {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        [data-instances-table='true'] .ant-table-body {
+          flex: 1;
+          min-height: 0;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table,
+        [data-instances-table='true'][data-empty='true'] .ant-table-container,
+        [data-instances-table='true'][data-empty='true'] .ant-table-content,
+        [data-instances-table='true'][data-empty='true'] .ant-table-body {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-content > table,
+        [data-instances-table='true'][data-empty='true'] .ant-table-body > table {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-content > table > tbody,
+        [data-instances-table='true'][data-empty='true'] .ant-table-body > table > tbody {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-tbody {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder {
+          height: 100%;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder > td {
+          height: 100%;
+          padding: 0 !important;
+        }
+        [data-instances-table='true'][data-empty='true'] .ant-table-tbody > tr.ant-table-placeholder .ant-empty {
+          height: 100%;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
         [data-instances-table='true'] .ant-table-pagination.ant-pagination {
           margin-block-start: auto;
+          margin-block-end: 8px;
         }
       `}</style>
     </div>

@@ -75,7 +75,9 @@ describe('deploy plans table', () => {
       />,
     );
 
-    expect(container.querySelector('style')?.textContent ?? '').toContain('margin-block-start: auto');
+    const cssText = container.querySelector('style')?.textContent ?? '';
+    expect(cssText).toContain('margin-block-start: auto');
+    expect(cssText).toContain('margin-block-end: 8px');
   });
 
   it('centers the pagination instead of docking it to the right edge', async () => {
