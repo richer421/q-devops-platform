@@ -1,6 +1,9 @@
 import { Alert, Empty, Modal, Space, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { DeployPlanDetailDrawer } from '../../components/business/deploy-plan/DeployPlanDetailDrawer';
+import { DeployPlanFormModal } from '../../components/business/deploy-plan/DeployPlanFormModal';
+import { DeployPlanTablePanel } from '../../components/business/deploy-plan/DeployPlanTablePanel';
 import { CIConfigDetailDrawer } from '../../components/business/ci-config/CIConfigDetailDrawer';
 import { CIConfigFormModal } from '../../components/business/ci-config/CIConfigFormModal';
 import { CIConfigTablePanel } from '../../components/business/ci-config/CIConfigTablePanel';
@@ -31,10 +34,19 @@ import {
 import type { BusinessUnit, CDConfig, Instance } from '../../mock';
 import { businessInstanceConfigs, businesses, cdConfigs, ciConfigs, deployPlans } from '../../mock';
 import { useCIConfigTab } from './useCIConfigTab';
+import { useDeployPlanTab } from './useDeployPlanTab';
 
 type DetailTab = 'plans' | 'ci' | 'cd' | 'instances';
 
 const DEFAULT_CD_PAGE_SIZE = 10;
+
+function parseDetailTab(search: string): DetailTab {
+  const value = new URLSearchParams(search).get('tab');
+  if (value === 'plans' || value === 'ci' || value === 'cd' || value === 'instances') {
+    return value;
+  }
+  return 'instances';
+}
 
 function buildCDStrategySummary(value: CDConfigFormValue) {
   if (value.deploymentMode !== '金丝雀发布') {
@@ -73,7 +85,7 @@ export function BusinessDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<DetailTab>('instances');
+  const [activeTab, setActiveTab] = useState<DetailTab>(() => parseDetailTab(location.search));
 
   const [cdList, setCdList] = useState<CDConfig[]>([]);
   const [cdTotal, setCdTotal] = useState(0);
@@ -118,6 +130,11 @@ export function BusinessDetailPage() {
         projectId?: number;
       }
     | undefined;
+
+  useEffect(() => {
+    const nextTab = parseDetailTab(location.search);
+    setActiveTab((current) => (current === nextTab ? current : nextTab));
+  }, [location.search]);
 
   const mockBusiness = useMemo(() => businesses.find((item) => item.id === id), [id]);
   const mockCDConfigs = useMemo(
@@ -329,6 +346,10 @@ export function BusinessDetailPage() {
     businessUnitID: metahubBusinessUnitID,
     enabled: activeTab === 'ci',
   });
+  const deployPlanTab = useDeployPlanTab({
+    businessUnitID: metahubBusinessUnitID,
+    enabled: activeTab === 'plans',
+  });
 
   const reloadMetahubCDConfigs = async (query?: {
     page?: number;
@@ -445,6 +466,24 @@ export function BusinessDetailPage() {
     { id: 'ci', label: 'CI 配置' },
     { id: 'cd', label: 'CD 配置' },
   ];
+
+  const handleTabChange = (nextTab: DetailTab) => {
+    setActiveTab(nextTab);
+
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set('tab', nextTab);
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: `?${searchParams.toString()}`,
+      },
+      {
+        replace: true,
+        state: location.state,
+      },
+    );
+  };
 
   const reloadMetahubInstances = async (query?: {
     page?: number;
@@ -682,7 +721,7 @@ export function BusinessDetailPage() {
       extension={(
         <Space direction="vertical" size={12} style={{ display: 'flex' }}>
           <BusinessSummary business={business} />
-          <PageHeaderTabs items={tabItems} value={activeTab} onChange={setActiveTab} />
+          <PageHeaderTabs items={tabItems} value={activeTab} onChange={handleTabChange} />
         </Space>
       )}
       contentStyle={{ padding: 0 }}
@@ -714,7 +753,73 @@ export function BusinessDetailPage() {
           onDeleteInstance={metahubBusinessUnitID ? handleDeleteInstance : undefined}
         />
       )}
-      {activeTab === 'plans' && <DeployPlansTable plans={businessPlans} />}
+      {activeTab === 'plans' &&
+        (metahubBusinessUnitID ? (
+          <>
+            <DeployPlanTablePanel
+              items={deployPlanTab.items}
+              total={deployPlanTab.total}
+              page={deployPlanTab.page}
+              pageSize={deployPlanTab.pageSize}
+              keyword={deployPlanTab.keyword}
+              loading={deployPlanTab.loading}
+              onKeywordChange={deployPlanTab.onKeywordChange}
+              onPageChange={deployPlanTab.onPageChange}
+              onCreate={deployPlanTab.openCreateForm}
+              onView={deployPlanTab.openDetail}
+              onEdit={(item) => {
+                void deployPlanTab.openEditForm(item);
+              }}
+              onDelete={deployPlanTab.requestDelete}
+            />
+
+            <DeployPlanDetailDrawer
+              open={deployPlanTab.detailOpen}
+              loading={deployPlanTab.detailLoading}
+              error={deployPlanTab.detailError}
+              item={deployPlanTab.detailItem}
+              onClose={deployPlanTab.closeDetail}
+              onEdit={(item) => {
+                void deployPlanTab.openEditForm(item);
+              }}
+            />
+
+            <DeployPlanFormModal
+              open={deployPlanTab.formOpen}
+              mode={deployPlanTab.formMode}
+              initialValue={deployPlanTab.formInitialValue}
+              submitting={deployPlanTab.submitting}
+              optionLoading={deployPlanTab.optionLoading}
+              ciOptions={deployPlanTab.ciOptions}
+              cdOptions={deployPlanTab.cdOptions}
+              instanceOptions={deployPlanTab.instanceOptions}
+              onSubmit={(value) => {
+                void deployPlanTab.submitForm(value);
+              }}
+              onClose={deployPlanTab.closeForm}
+            />
+
+            <Modal
+              open={deployPlanTab.deleteTarget != null}
+              title="确认删除部署计划"
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true, loading: deployPlanTab.deleting }}
+              onOk={() => {
+                void deployPlanTab.confirmDelete();
+              }}
+              onCancel={deployPlanTab.closeDelete}
+              destroyOnHidden
+            >
+              <Typography.Paragraph>
+                确定要删除部署计划 <Typography.Text strong>{deployPlanTab.deleteTarget?.name}</Typography.Text> 吗？该操作不可撤销。
+              </Typography.Paragraph>
+              {deployPlanTab.deleteError ? <Alert type="error" message={deployPlanTab.deleteError} showIcon /> : null}
+            </Modal>
+          </>
+        ) : (
+          <DeployPlansTable plans={businessPlans} />
+        ))}
       {activeTab === 'ci' &&
         (metahubBusinessUnitID ? (
           <>

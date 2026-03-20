@@ -10,12 +10,18 @@ export type DeployPlan = {
   id: string;
   buId: string;
   name: string;
+  description?: string;
+  ciConfigID?: number;
+  cdConfigID?: number;
+  instanceOAMID?: number;
   env: string;
   ciConfig: string;
   cdConfig: string;
   instance: string;
   lastStatus: 'success' | 'failed' | 'running' | 'pending';
   lastTime: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type CIConfig = {

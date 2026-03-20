@@ -146,12 +146,15 @@ export function DeployPlansTable({ plans }: DeployPlansTableProps) {
         align: 'center',
         width: 96,
         render: (value) => {
-          const status =
-            value === 'running'
-              ? { label: '进行中' }
-              : getReleaseStatusMeta(value as 'success' | 'failed' | 'deploying');
+          if (value === 'running') {
+            return <Tag>进行中</Tag>;
+          }
+          if (value === 'pending') {
+            return <Tag>待发布</Tag>;
+          }
 
-          return <Tag>{status.label}</Tag>;
+          const status = getReleaseStatusMeta(value as 'success' | 'failed' | 'deploying');
+          return <Tag>{status?.label ?? '未知'}</Tag>;
         },
       },
     ],
