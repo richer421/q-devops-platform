@@ -1,35 +1,43 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { buildSteps, builds } from '../../mock';
+import type { BuildRecord } from '../../lib/q-ci-build';
 import { BuildCard } from './BuildCard';
 
+const sampleBuild: BuildRecord = {
+  id: 42,
+  ciConfigID: 31,
+  businessUnitID: 21,
+  deployPlanID: 61,
+  name: 'api-server',
+  imageRef: 'harbor.local/demo/api-server:main',
+  imageTag: 'main',
+  imageDigest: 'sha256:abc123',
+  status: 'success',
+  buildSource: {
+    repoURL: 'https://github.com/org/api-server.git',
+    refType: 'branch',
+    refValue: 'main',
+    commitID: '',
+    commitMessage: '',
+    author: '',
+  },
+  buildStartedAt: '2026-03-21T10:00:00Z',
+  buildFinishedAt: '2026-03-21T10:02:05Z',
+  errorMessage: '',
+  jenkinsBuildURL: 'http://127.0.0.1:30090/job/q-ci-build/42',
+  jenkinsBuildNumber: 42,
+  createdAt: '2026-03-21T10:00:00Z',
+};
+
 describe('build card', () => {
-  it('renders build steps inside expandable step containers', async () => {
-    const build = builds.find((item) => item.id === 'BUILD-004');
+  it('renders the task-level build summary and artifact info', async () => {
+    render(<BuildCard build={sampleBuild} />);
 
-    expect(build).toBeDefined();
-
-    render(<BuildCard build={build!} steps={buildSteps[build!.id] ?? []} />);
-
-    fireEvent.click(screen.getByText('chore: upgrade vite to 5.2.0'));
-
-    const stepContainers = document.querySelectorAll('[data-cicd-step-container="true"]');
-
-    expect(stepContainers).toHaveLength((buildSteps[build!.id] ?? []).length);
-    expect(await screen.findByText('镜像推送')).toBeInTheDocument();
+    expect(screen.getByText('api-server')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Jenkins #42/i })).toHaveAttribute(
+      'href',
+      'http://127.0.0.1:30090/job/q-ci-build/42',
+    );
   });
 
-  it('renders terminal detail inside a dedicated step detail panel', async () => {
-    const build = builds.find((item) => item.id === 'BUILD-004');
-
-    expect(build).toBeDefined();
-
-    render(<BuildCard build={build!} steps={buildSteps[build!.id] ?? []} />);
-
-    fireEvent.click(screen.getByText('chore: upgrade vite to 5.2.0'));
-    fireEvent.click(screen.getByRole('button', { name: /镜像推送 22s/i }));
-
-    expect(document.querySelector('[data-cicd-step-detail="terminal"]')).not.toBeNull();
-    expect(await screen.findByText(/sha256:a1b2c3d4e5f6/i)).toBeInTheDocument();
-  });
 });

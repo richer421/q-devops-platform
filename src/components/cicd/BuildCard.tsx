@@ -3,36 +3,85 @@ import {
   CheckCircleFilled,
   ClockCircleOutlined,
   CloseCircleFilled,
-  RedoOutlined,
   SyncOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
-import { Button, Tag } from 'antd';
+import { Button, Tag, Typography } from 'antd';
 import { Package } from 'lucide-react';
-import type { Build, BuildStep } from '../../mock';
+import { formatDateTimeYMDHM } from '../../lib/date-time';
+import type { BuildRecord } from '../../lib/q-ci-build';
 import { CicdEntryCard } from './CicdEntryCard';
 import { CicdStepContainer } from './CicdStepContainer';
-import { Avatar, ElapsedTimer, TerminalLog } from './shared';
+import { ElapsedTimer } from './shared';
 
 type BuildCardProps = {
-  build: Build;
-  steps: BuildStep[];
+  build: BuildRecord;
 };
 
-const CARD_BORDER: Record<Build['status'], string> = {
+const { Text, Link } = Typography;
+
+const CARD_BORDER: Record<BuildRecord['status'], string> = {
+  pending: '#FF7D00',
   success: '#00B42A',
   failed: '#F53F3F',
   running: '#1664FF',
 };
 
-const BUILD_TAG: Record<Build['status'], { color: string; label: string }> = {
+const BUILD_TAG: Record<BuildRecord['status'], { color: string; label: string }> = {
+  pending: { color: 'warning', label: '排队中' },
   success: { color: 'success', label: '成功' },
   failed: { color: 'error', label: '失败' },
   running: { color: 'processing', label: '构建中' },
 };
 
-export function BuildCard({ build, steps }: BuildCardProps) {
-  const runningIndex = steps.findIndex((step) => step.status === 'running');
+function formatRefTypeLabel(refType: BuildRecord['buildSource']['refType']) {
+  switch (refType) {
+    case 'branch':
+      return 'Branch';
+    case 'tag':
+      return 'Tag';
+    case 'commit':
+      return 'Commit';
+  }
+}
+
+function formatCommitLabel(build: BuildRecord) {
+  const commitID = build.buildSource.commitID.trim();
+  if (commitID) {
+    return commitID.slice(0, 8);
+  }
+  if (build.buildSource.refType === 'commit') {
+    return build.buildSource.refValue.slice(0, 8);
+  }
+  return '-';
+}
+
+function formatDuration(build: BuildRecord) {
+  if (!build.buildStartedAt || !build.buildFinishedAt) {
+    return '—';
+  }
+
+  const startedAt = Date.parse(build.buildStartedAt);
+  const finishedAt = Date.parse(build.buildFinishedAt);
+  if (Number.isNaN(startedAt) || Number.isNaN(finishedAt) || finishedAt < startedAt) {
+    return '—';
+  }
+
+  const durationSeconds = Math.round((finishedAt - startedAt) / 1000);
+  if (durationSeconds < 60) {
+    return `${durationSeconds}s`;
+  }
+
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+  return `${minutes}分${seconds}秒`;
+}
+
+export function BuildCard({ build }: BuildCardProps) {
   const buildTag = BUILD_TAG[build.status];
+  const commitLabel = formatCommitLabel(build);
+  const startedAt = formatDateTimeYMDHM(build.buildStartedAt || build.createdAt);
+  const finishedAt = formatDateTimeYMDHM(build.buildFinishedAt);
 
   return (
     <CicdEntryCard
@@ -40,6 +89,7 @@ export function BuildCard({ build, steps }: BuildCardProps) {
       defaultOpen={build.status === 'running'}
       headerLeading={
         <>
+          {build.status === 'pending' && <ClockCircleOutlined style={{ color: '#FF7D00', fontSize: 18 }} />}
           {build.status === 'success' && <CheckCircleFilled style={{ color: '#00B42A', fontSize: 18 }} />}
           {build.status === 'failed' && <CloseCircleFilled style={{ color: '#F53F3F', fontSize: 18 }} />}
           {build.status === 'running' && <SyncOutlined spin style={{ color: '#1664FF', fontSize: 18 }} />}
@@ -48,15 +98,18 @@ export function BuildCard({ build, steps }: BuildCardProps) {
       headerContent={
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#1D2129' }}>{build.commitMsg}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#1D2129' }}>{build.name}</span>
             <Tag color={buildTag.color} style={{ borderRadius: 12, fontSize: 11 }}>
               {buildTag.label}
+            </Tag>
+            <Tag color="geekblue" style={{ fontSize: 11 }}>
+              部署计划 #{build.deployPlanID}
             </Tag>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <Tag icon={<BranchesOutlined />} color="blue" style={{ fontSize: 11 }}>
-              {build.branch}
+              {formatRefTypeLabel(build.buildSource.refType)} · {build.buildSource.refValue}
             </Tag>
             <code
               style={{
@@ -67,13 +120,9 @@ export function BuildCard({ build, steps }: BuildCardProps) {
                 color: '#86909C',
               }}
             >
-              {build.commit}
+              {commitLabel}
             </code>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#86909C' }}>
-              <Avatar name={build.author} />
-              <span style={{ fontSize: 12 }}>{build.author}</span>
-            </div>
-            <span style={{ color: '#86909C', fontSize: 12 }}>{build.buName}</span>
+            <span style={{ color: '#86909C', fontSize: 12 }}>业务单元 #{build.businessUnitID}</span>
             <span style={{ color: '#C9CDD4', fontSize: 12 }}>#{build.id}</span>
           </div>
         </>
@@ -85,37 +134,72 @@ export function BuildCard({ build, steps }: BuildCardProps) {
           ) : (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#86909C', fontSize: 12 }}>
               <ClockCircleOutlined style={{ fontSize: 11 }} />
-              {build.duration}
+              {formatDuration(build)}
             </span>
           )}
-          <span style={{ color: '#C9CDD4', fontSize: 12 }}>{build.startTime}</span>
-          <Button size="small" icon={<RedoOutlined />} onClick={(event) => event.stopPropagation()}>
-            重建
-          </Button>
+          <span style={{ color: '#C9CDD4', fontSize: 12 }}>{startedAt}</span>
+          {build.jenkinsBuildURL ? (
+            <Button
+              size="small"
+              type="link"
+              href={build.jenkinsBuildURL}
+              target="_blank"
+              rel="noreferrer"
+              icon={<LinkOutlined />}
+              onClick={(event) => event.stopPropagation()}
+            >
+              Jenkins #{build.jenkinsBuildNumber || build.id}
+            </Button>
+          ) : null}
         </>
       }
     >
       <div style={{ padding: '12px 20px' }}>
-        {steps.map((step, index) => (
-          <CicdStepContainer
-            key={`${build.id}-${step.name}-${index}`}
-            title={step.name}
-            status={step.status}
-            duration={step.duration}
-            note={
-              step.status === 'skipped' ? (
-                <span style={{ color: '#C9CDD4', fontSize: 11 }}>已跳过</span>
-              ) : undefined
-            }
-            defaultOpen={build.status === 'running' && runningIndex === index}
-            detailKind={step.log?.length ? 'terminal' : undefined}
-            detail={
-              step.log?.length ? (
-                <TerminalLog lines={step.log} animate={step.status === 'running'} />
-              ) : undefined
-            }
-          />
-        ))}
+        <CicdStepContainer
+          title="构建任务"
+          status={build.status === 'pending' ? 'pending' : build.status}
+          duration={build.status === 'running' ? null : formatDuration(build)}
+          detail={
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  仓库地址
+                </Text>
+                <code>{build.buildSource.repoURL || '-'}</code>
+              </div>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  结束时间
+                </Text>
+                <span>{finishedAt}</span>
+              </div>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  镜像摘要
+                </Text>
+                <code>{build.imageDigest || '-'}</code>
+              </div>
+              {build.errorMessage ? (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    错误信息
+                  </Text>
+                  <span style={{ color: '#F53F3F', fontSize: 12, lineHeight: 1.6 }}>
+                    {build.errorMessage}
+                  </span>
+                </div>
+              ) : null}
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                当前阶段只接了任务级状态；若要排障，请直接进入 Jenkins 查看模板执行详情。
+              </Text>
+              {build.jenkinsBuildURL ? (
+                <Link href={build.jenkinsBuildURL} target="_blank" rel="noreferrer">
+                  打开 Jenkins 构建详情
+                </Link>
+              ) : null}
+            </div>
+          }
+        />
       </div>
 
       {build.imageRef ? (
