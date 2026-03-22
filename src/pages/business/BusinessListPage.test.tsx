@@ -38,6 +38,14 @@ describe('business list page', () => {
           name: 'api-server',
           description: '核心 REST API 服务',
           project_id: 101,
+          project: {
+            id: 101,
+            git_id: 1001,
+            name: 'api-server',
+            repo_url: 'https://github.com/org/api-server.git',
+            created_at: '2026-03-18T08:00:00Z',
+            updated_at: '2026-03-18T08:30:00Z',
+          },
           created_at: '2026-03-18T09:00:00Z',
           updated_at: '2026-03-18T09:30:00Z',
         },
@@ -50,7 +58,30 @@ describe('business list page', () => {
     render(<AppRouter kind="memory" initialEntries={['/business']} />);
 
     expect(await screen.findByText('api-server')).toBeInTheDocument();
-    expect(screen.getByText('github.com/org/api-server')).toBeInTheDocument();
+    expect(screen.getByText('github.com/org/api-server.git')).toBeInTheDocument();
+  });
+
+  it('falls back to local project catalog when backend project is absent', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse({
+      items: [
+        {
+          id: 8,
+          name: 'q-demo-bu',
+          description: '用于验证 CI 的业务',
+          project_id: 104,
+          created_at: '2026-03-18T09:00:00Z',
+          updated_at: '2026-03-18T09:30:00Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 10,
+    })) as typeof fetch;
+
+    render(<AppRouter kind="memory" initialEntries={['/business']} />);
+
+    expect(await screen.findByText('q-demo-bu')).toBeInTheDocument();
+    expect(screen.getByText('github.com/richer421/q-demo')).toBeInTheDocument();
   });
 
   it('navigates to business detail when clicking the business name', async () => {

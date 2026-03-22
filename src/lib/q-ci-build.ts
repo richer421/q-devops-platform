@@ -1,5 +1,6 @@
 export type BuildStatus = 'pending' | 'running' | 'success' | 'failed';
 export type BuildRefType = 'branch' | 'tag' | 'commit';
+export type BuildStageStatus = BuildStatus | 'skipped';
 
 type ApiResponse<T> = {
   code: number;
@@ -22,17 +23,37 @@ type QCIArtifactDTO = {
   business_unit_id: number;
   deploy_plan_id: number;
   name: string;
+  pipeline: QCIPipelineDTO;
   image_ref: string;
   image_tag: string;
   image_digest?: string;
   status: BuildStatus;
   build_source: QCIBuildSourceDTO;
+  stages?: QCIArtifactStageDTO[];
   build_started_at?: string;
   build_finished_at?: string;
   error_message?: string;
   jenkins_build_url?: string;
   jenkins_build_number?: number;
   created_at: string;
+};
+
+type QCIArtifactStageDTO = {
+  name: string;
+  status: BuildStageStatus;
+  started_at?: string;
+  finished_at?: string;
+  error_message?: string;
+};
+
+type QCIPipelineDTO = {
+  name: string;
+  stages: QCIPipelineStageDTO[];
+};
+
+type QCIPipelineStageDTO = {
+  name: string;
+  title: string;
 };
 
 type QCIArtifactListDTO = {
@@ -54,6 +75,13 @@ export type BuildRecord = {
   businessUnitID: number;
   deployPlanID: number;
   name: string;
+  pipeline: {
+    name: string;
+    stages: Array<{
+      name: string;
+      title: string;
+    }>;
+  };
   imageRef: string;
   imageTag: string;
   imageDigest: string;
@@ -66,6 +94,14 @@ export type BuildRecord = {
     commitMessage: string;
     author: string;
   };
+  stages: Array<{
+    name: string;
+    title: string;
+    status: BuildStageStatus;
+    startedAt: string;
+    finishedAt: string;
+    errorMessage: string;
+  }>;
   buildStartedAt: string;
   buildFinishedAt: string;
   errorMessage: string;
@@ -143,12 +179,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function fromArtifact(dto: QCIArtifactDTO): BuildRecord {
+  const runtimeStages = new Map((dto.stages ?? []).map((stage) => [stage.name, stage]));
+  const plannedStages = dto.pipeline?.stages ?? [];
+
   return {
     id: dto.id,
     ciConfigID: dto.ci_config_id,
     businessUnitID: dto.business_unit_id,
     deployPlanID: dto.deploy_plan_id,
     name: dto.name,
+    pipeline: {
+      name: dto.pipeline?.name ?? '',
+      stages: plannedStages.map((stage) => ({
+        name: stage.name,
+        title: stage.title,
+      })),
+    },
     imageRef: dto.image_ref,
     imageTag: dto.image_tag,
     imageDigest: dto.image_digest ?? '',
@@ -161,6 +207,17 @@ function fromArtifact(dto: QCIArtifactDTO): BuildRecord {
       commitMessage: dto.build_source.commit_msg ?? '',
       author: dto.build_source.author ?? '',
     },
+    stages: plannedStages.map((stage) => {
+      const runtime = runtimeStages.get(stage.name);
+      return {
+        name: stage.name,
+        title: stage.title,
+        status: runtime?.status ?? 'pending',
+        startedAt: runtime?.started_at ?? '',
+        finishedAt: runtime?.finished_at ?? '',
+        errorMessage: runtime?.error_message ?? '',
+      };
+    }),
     buildStartedAt: dto.build_started_at ?? '',
     buildFinishedAt: dto.build_finished_at ?? '',
     errorMessage: dto.error_message ?? '',

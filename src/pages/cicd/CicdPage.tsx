@@ -105,7 +105,7 @@ export function CicdPage() {
       <BasePage
         breadcrumbs={[{ label: 'Q DevOps' }, { label: '业务交付' }]}
         title="业务交付"
-        description="触发 Jenkins 构建、查看 Harbor 产物，并在当前阶段通过任务级状态追踪结果"
+        description="触发 Jenkins 构建、查看 Harbor 产物，并通过官方四步骤追踪构建进度和结果"
         action={
           tab === 'ci' ? (
             <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => setShowBuild(true)}>

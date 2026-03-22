@@ -20,6 +20,11 @@ export const projectCatalog: ProjectCatalogItem[] = [
     name: 'worker',
     repoUrl: 'https://github.com/org/worker',
   },
+  {
+    id: 104,
+    name: 'q-demo',
+    repoUrl: 'https://github.com/richer421/q-demo',
+  },
 ];
 
 export function findProjectCatalogItem(projectID: number) {

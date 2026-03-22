@@ -27,6 +27,14 @@ describe('metahub business-unit client', () => {
               name: 'api-server',
               description: '核心 REST API 服务',
               project_id: 101,
+              project: {
+                id: 101,
+                git_id: 1001,
+                name: 'api-server',
+                repo_url: 'https://github.com/org/api-server.git',
+                created_at: '2026-03-18T08:00:00Z',
+                updated_at: '2026-03-18T08:30:00Z',
+              },
               created_at: '2026-03-18T09:00:00Z',
               updated_at: '2026-03-18T09:30:00Z',
             },
@@ -48,6 +56,11 @@ describe('metahub business-unit client', () => {
       name: 'api-server',
       description: '核心 REST API 服务',
       projectId: 101,
+      project: {
+        id: 101,
+        name: 'api-server',
+        repoUrl: 'https://github.com/org/api-server.git',
+      },
     });
   });
 

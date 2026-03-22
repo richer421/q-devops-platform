@@ -41,13 +41,13 @@ export function BusinessListPage() {
   const tableRows = useMemo<BusinessTableRow[]>(
     () =>
       list.map((item) => {
-        const project = findProjectCatalogItem(item.projectId);
+        const fallbackProject = findProjectCatalogItem(item.projectId);
         return {
           id: String(item.id),
           name: item.name,
           desc: item.description,
-          repoUrl: project?.repoUrl ?? '',
-          projectName: project?.name ?? '未知代码库',
+          repoUrl: item.project?.repoUrl ?? fallbackProject?.repoUrl ?? '',
+          projectName: item.project?.name ?? fallbackProject?.name ?? '未知代码库',
           projectId: item.projectId,
           status: 'active',
         };

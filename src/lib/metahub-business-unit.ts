@@ -9,6 +9,14 @@ type MetahubBusinessUnitDTO = {
   name: string;
   description: string;
   project_id: number;
+  project?: {
+    id: number;
+    git_id: number;
+    name: string;
+    repo_url: string;
+    created_at: string;
+    updated_at: string;
+  };
   created_at: string;
   updated_at: string;
 };
@@ -25,6 +33,11 @@ export type BusinessUnitRecord = {
   name: string;
   description: string;
   projectId: number;
+  project?: {
+    id: number;
+    name: string;
+    repoUrl: string;
+  };
   createdAt: string;
   updatedAt: string;
 };
@@ -89,6 +102,13 @@ function fromDTO(dto: MetahubBusinessUnitDTO): BusinessUnitRecord {
     name: dto.name,
     description: dto.description,
     projectId: dto.project_id,
+    project: dto.project
+      ? {
+          id: dto.project.id,
+          name: dto.project.name,
+          repoUrl: dto.project.repo_url,
+        }
+      : undefined,
     createdAt: dto.created_at,
     updatedAt: dto.updated_at,
   };

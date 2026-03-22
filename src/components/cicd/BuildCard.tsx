@@ -10,8 +10,8 @@ import { Button, Tag, Typography } from 'antd';
 import { Package } from 'lucide-react';
 import { formatDateTimeYMDHM } from '../../lib/date-time';
 import type { BuildRecord } from '../../lib/q-ci-build';
+import { BuildStageList } from './BuildStageList';
 import { CicdEntryCard } from './CicdEntryCard';
-import { CicdStepContainer } from './CicdStepContainer';
 import { ElapsedTimer } from './shared';
 
 type BuildCardProps = {
@@ -155,51 +155,48 @@ export function BuildCard({ build }: BuildCardProps) {
       }
     >
       <div style={{ padding: '12px 20px' }}>
-        <CicdStepContainer
-          title="构建任务"
-          status={build.status === 'pending' ? 'pending' : build.status}
-          duration={build.status === 'running' ? null : formatDuration(build)}
-          detail={
-            <div style={{ display: 'grid', gap: 10 }}>
-              <div style={{ display: 'grid', gap: 4 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  仓库地址
-                </Text>
-                <code>{build.buildSource.repoURL || '-'}</code>
-              </div>
-              <div style={{ display: 'grid', gap: 4 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  结束时间
-                </Text>
-                <span>{finishedAt}</span>
-              </div>
-              <div style={{ display: 'grid', gap: 4 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  镜像摘要
-                </Text>
-                <code>{build.imageDigest || '-'}</code>
-              </div>
-              {build.errorMessage ? (
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    错误信息
-                  </Text>
-                  <span style={{ color: '#F53F3F', fontSize: 12, lineHeight: 1.6 }}>
-                    {build.errorMessage}
-                  </span>
-                </div>
-              ) : null}
+        <BuildStageList build={build} />
+      </div>
+
+      <div style={{ padding: '0 20px 16px' }}>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              仓库地址
+            </Text>
+            <code>{build.buildSource.repoURL || '-'}</code>
+          </div>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              结束时间
+            </Text>
+            <span>{finishedAt}</span>
+          </div>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              镜像摘要
+            </Text>
+            <code>{build.imageDigest || '-'}</code>
+          </div>
+          {build.errorMessage ? (
+            <div style={{ display: 'grid', gap: 4 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                当前阶段只接了任务级状态；若要排障，请直接进入 Jenkins 查看模板执行详情。
+                错误信息
               </Text>
-              {build.jenkinsBuildURL ? (
-                <Link href={build.jenkinsBuildURL} target="_blank" rel="noreferrer">
-                  打开 Jenkins 构建详情
-                </Link>
-              ) : null}
+              <span style={{ color: '#F53F3F', fontSize: 12, lineHeight: 1.6 }}>
+                {build.errorMessage}
+              </span>
             </div>
-          }
-        />
+          ) : null}
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            阶段状态由 Jenkins 模板回调驱动；排障和日志仍以 Jenkins 构建详情为准。
+          </Text>
+          {build.jenkinsBuildURL ? (
+            <Link href={build.jenkinsBuildURL} target="_blank" rel="noreferrer">
+              打开 Jenkins 构建详情
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {build.imageRef ? (

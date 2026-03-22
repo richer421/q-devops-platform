@@ -81,6 +81,15 @@ describe('cicd page', () => {
               business_unit_id: 21,
               deploy_plan_id: 61,
               name: 'api-server',
+              pipeline: {
+                name: 'standard',
+                stages: [
+                  { name: 'checkout', title: '代码检出' },
+                  { name: 'compile', title: '代码编译' },
+                  { name: 'image_build', title: '镜像构建' },
+                  { name: 'image_push', title: '镜像推送' },
+                ],
+              },
               image_ref: 'harbor.local/demo/api-server:main',
               image_tag: 'main',
               image_digest: 'sha256:abc123',
@@ -90,6 +99,36 @@ describe('cicd page', () => {
                 ref_type: 'branch',
                 ref_value: 'main',
               },
+              stages: [
+                {
+                  name: 'checkout',
+                  title: '代码检出',
+                  status: 'success',
+                  started_at: '2026-03-21T10:00:00Z',
+                  finished_at: '2026-03-21T10:00:02Z',
+                },
+                {
+                  name: 'compile',
+                  title: '代码编译',
+                  status: 'success',
+                  started_at: '2026-03-21T10:00:02Z',
+                  finished_at: '2026-03-21T10:01:05Z',
+                },
+                {
+                  name: 'image_build',
+                  title: '镜像构建',
+                  status: 'success',
+                  started_at: '2026-03-21T10:01:05Z',
+                  finished_at: '2026-03-21T10:01:45Z',
+                },
+                {
+                  name: 'image_push',
+                  title: '镜像推送',
+                  status: 'success',
+                  started_at: '2026-03-21T10:01:45Z',
+                  finished_at: '2026-03-21T10:02:05Z',
+                },
+              ],
               jenkins_build_url: 'http://127.0.0.1:30090/job/q-ci-build/42',
               jenkins_build_number: 42,
               created_at: '2026-03-21T10:00:00Z',
@@ -106,6 +145,8 @@ describe('cicd page', () => {
     render(<AppRouter kind="memory" initialEntries={['/cicd']} />);
 
     expect(await screen.findByRole('link', { name: /Jenkins #42/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '展开条目详情' }));
+    expect(screen.getByText('镜像推送')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Jenkins #42/i })).toHaveAttribute(
       'href',
       'http://127.0.0.1:30090/job/q-ci-build/42',
