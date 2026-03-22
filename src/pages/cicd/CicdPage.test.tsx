@@ -15,6 +15,14 @@ function jsonResponse(data: unknown) {
   };
 }
 
+function hasExactText(text: string) {
+  return (_content: string, element: Element | null) => element?.textContent === text;
+}
+
+function isVisibleDropdownOption(element: Element) {
+  return Boolean(element.closest('.ant-select-item-option'));
+}
+
 describe('cicd page', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -127,6 +135,14 @@ describe('cicd page', () => {
                 created_at: '2026-03-18T09:00:00Z',
                 updated_at: '2026-03-18T09:30:00Z',
               },
+              {
+                id: 22,
+                name: 'worker',
+                description: '异步任务服务',
+                project_id: 102,
+                created_at: '2026-03-18T09:10:00Z',
+                updated_at: '2026-03-18T09:40:00Z',
+              },
             ],
             total: 1,
             page: 1,
@@ -155,6 +171,27 @@ describe('cicd page', () => {
           });
         }
 
+        if (url.startsWith('/api/v1/business-units/22/deploy-plans?')) {
+          return jsonResponse({
+            items: [
+              {
+                id: 71,
+                business_unit_id: 22,
+                name: 'worker-dev',
+                env: 'dev',
+                ci_config_name: 'ci-worker',
+                cd_config_name: 'cd-worker',
+                instance_name: 'inst-worker-dev',
+                last_status: 'success',
+                last_time: '2026-03-21T09:10:00Z',
+              },
+            ],
+            total: 1,
+            page: 1,
+            page_size: 200,
+          });
+        }
+
         if (url.startsWith('/q-ci-api/api/v1/artifacts?')) {
           return jsonResponse({
             list: [],
@@ -166,16 +203,16 @@ describe('cicd page', () => {
           expect(init).toMatchObject({
             method: 'POST',
             body: JSON.stringify({
-              deploy_plan_id: 61,
+              deploy_plan_id: 71,
               ref_type: 'tag',
               ref_value: 'v1.2.3',
             }),
           });
           return jsonResponse({
             artifact_id: 108,
-            deploy_plan_id: 61,
+            deploy_plan_id: 71,
             status: 'running',
-            image_ref: 'harbor.local/demo/api-server:v1.2.3',
+            image_ref: 'harbor.local/demo/worker:v1.2.3',
             image_tag: 'v1.2.3',
           });
         }
@@ -187,6 +224,31 @@ describe('cicd page', () => {
     render(<AppRouter kind="memory" initialEntries={['/cicd']} />);
 
     fireEvent.click(await screen.findByRole('button', { name: /触发构建/i }));
+
+    const businessUnitSelector = screen
+      .getByTestId('trigger-build-business-unit')
+      .querySelector('.ant-select-selector');
+    expect(businessUnitSelector).not.toBeNull();
+    fireEvent.mouseDown(businessUnitSelector!);
+    const workerOption = (await screen.findAllByText(hasExactText('worker'))).find(isVisibleDropdownOption);
+    expect(workerOption).toBeDefined();
+    fireEvent.click(workerOption!.closest('.ant-select-item-option') ?? workerOption!);
+
+    await screen.findByText('worker-dev');
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) => String(input) === '/q-ci-api/api/v1/artifacts?page=1&page_size=20&business_unit_id=22',
+      ),
+    ).toBe(false);
+
+    const deployPlanSelector = screen
+      .getByTestId('trigger-build-deploy-plan')
+      .querySelector('.ant-select-selector');
+    expect(deployPlanSelector).not.toBeNull();
+    fireEvent.mouseDown(deployPlanSelector!);
+    const workerDeployPlanOption = (await screen.findAllByText(hasExactText('worker-dev'))).find(isVisibleDropdownOption);
+    expect(workerDeployPlanOption).toBeDefined();
+    fireEvent.click(workerDeployPlanOption!.closest('.ant-select-item-option') ?? workerDeployPlanOption!);
 
     fireEvent.click(screen.getByRole('radio', { name: 'Tag' }));
     fireEvent.change(screen.getByPlaceholderText('例如：main / v1.2.3 / a1b2c3d4'), {

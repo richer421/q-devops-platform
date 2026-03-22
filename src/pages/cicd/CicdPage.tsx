@@ -1,6 +1,6 @@
 import { PlayCircleOutlined, RocketOutlined } from '@ant-design/icons';
-import { Button, Empty, Select, Space, Spin, Typography } from 'antd';
-import { useMemo, useState } from 'react';
+import { Button, Empty, Select, Space, Spin, Typography, message } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 import { BuildCard } from '../../components/cicd/BuildCard';
 import { ExecuteReleaseModal } from '../../components/cicd/ExecuteReleaseModal';
 import { ReleaseCard } from '../../components/cicd/ReleaseCard';
@@ -11,6 +11,7 @@ import {
   PageHeaderTabs,
   type PageHeaderTabItem,
 } from '../../components/layout/page-header';
+import { listBusinessUnitDeployPlans } from '../../lib/metahub-deploy-plan';
 import { releaseStages, releases } from '../../mock';
 import { useBuildWorkspace } from './useBuildWorkspace';
 
@@ -23,6 +24,12 @@ export function CicdPage() {
   const [showBuild, setShowBuild] = useState(false);
   const [showRelease, setShowRelease] = useState(false);
   const buildWorkspace = useBuildWorkspace();
+  const [modalBusinessUnitID, setModalBusinessUnitID] = useState<number>();
+  const [modalDeployPlanID, setModalDeployPlanID] = useState<number>();
+  const [modalDeployPlanOptions, setModalDeployPlanOptions] = useState<
+    Array<{ value: number; label: string }>
+  >([]);
+  const [modalOptionLoading, setModalOptionLoading] = useState(false);
 
   const tabItems: ReadonlyArray<PageHeaderTabItem<TabKey>> = useMemo(
     () => [
@@ -31,6 +38,65 @@ export function CicdPage() {
     ],
     [],
   );
+
+  useEffect(() => {
+    if (!showBuild) {
+      return;
+    }
+
+    setModalBusinessUnitID(buildWorkspace.selectedBusinessUnitID);
+    setModalDeployPlanID(buildWorkspace.selectedDeployPlanID);
+  }, [buildWorkspace.selectedBusinessUnitID, buildWorkspace.selectedDeployPlanID, showBuild]);
+
+  useEffect(() => {
+    if (!showBuild) {
+      return;
+    }
+    if (!modalBusinessUnitID) {
+      setModalDeployPlanOptions([]);
+      setModalDeployPlanID(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    setModalOptionLoading(true);
+
+    void listBusinessUnitDeployPlans(modalBusinessUnitID, { page: 1, pageSize: 200 })
+      .then((page) => {
+        if (cancelled) {
+          return;
+        }
+
+        const nextOptions = page.items.map((item) => ({
+          value: Number(item.id),
+          label: item.name,
+        }));
+        setModalDeployPlanOptions(nextOptions);
+        setModalDeployPlanID((current) =>
+          current && nextOptions.some((item) => item.value === current)
+            ? current
+            : nextOptions[0]?.value,
+        );
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        console.error(error);
+        void message.error(error instanceof Error ? error.message : '部署计划加载失败');
+        setModalDeployPlanOptions([]);
+        setModalDeployPlanID(undefined);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setModalOptionLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [modalBusinessUnitID, showBuild]);
 
   return (
     <>
@@ -153,16 +219,18 @@ export function CicdPage() {
         open={showBuild}
         onClose={() => setShowBuild(false)}
         businessUnitOptions={buildWorkspace.businessUnitOptions}
-        deployPlanOptions={buildWorkspace.deployPlanOptions}
-        businessUnitID={buildWorkspace.selectedBusinessUnitID}
-        deployPlanID={
-          buildWorkspace.selectedDeployPlanID ?? buildWorkspace.deployPlanOptions[0]?.value
-        }
-        optionLoading={buildWorkspace.optionLoading}
+        deployPlanOptions={modalDeployPlanOptions}
+        businessUnitID={modalBusinessUnitID}
+        deployPlanID={modalDeployPlanID}
+        optionLoading={buildWorkspace.optionLoading || modalOptionLoading}
         submitting={buildWorkspace.triggering}
-        onBusinessUnitChange={buildWorkspace.setSelectedBusinessUnitID}
-        onDeployPlanChange={buildWorkspace.setSelectedDeployPlanID}
-        onSubmit={buildWorkspace.submitTrigger}
+        onBusinessUnitChange={setModalBusinessUnitID}
+        onDeployPlanChange={setModalDeployPlanID}
+        onSubmit={async (payload) => {
+          buildWorkspace.setSelectedBusinessUnitID(modalBusinessUnitID);
+          buildWorkspace.setSelectedDeployPlanID(payload.deployPlanID);
+          await buildWorkspace.submitTrigger(payload);
+        }}
       />
       <ExecuteReleaseModal open={showRelease} onClose={() => setShowRelease(false)} />
     </>
