@@ -1,5 +1,5 @@
 import { message } from 'antd';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateTimeYMDHM } from '../../lib/date-time';
 import { listBusinessUnits } from '../../lib/metahub-business-unit';
 import { listBusinessUnitDeployPlans } from '../../lib/metahub-deploy-plan';
@@ -48,14 +48,6 @@ export function useBuildWorkspace() {
   const selectedBusinessUnitIDRef = useRef<number | undefined>(undefined);
   const selectedDeployPlanIDRef = useRef<number | undefined>(undefined);
   const buildRequestIDRef = useRef(0);
-  const runBuildPageLoadRef = useRef<
-    (params: {
-      page: number;
-      mode: 'replace' | 'append';
-      businessUnitID?: number;
-      deployPlanID?: number;
-    }) => Promise<void>
-  >(async () => undefined);
   const buildPageRef = useRef(0);
   const buildTotalRef = useRef(0);
   const buildsRef = useRef<BuildRecord[]>([]);
@@ -129,7 +121,7 @@ export function useBuildWorkspace() {
     selectedDeployPlanID,
   ]);
 
-  runBuildPageLoadRef.current = async (params: {
+  const loadBuildPage = useCallback(async (params: {
     page: number;
     mode: 'replace' | 'append';
     businessUnitID?: number;
@@ -191,16 +183,16 @@ export function useBuildWorkspace() {
         setLoadingMoreBuilds(false);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void runBuildPageLoadRef.current({
+    void loadBuildPage({
       page: 1,
       mode: 'replace',
       businessUnitID: selectedBusinessUnitID,
       deployPlanID: selectedDeployPlanID,
     });
-  }, [reloadToken, selectedBusinessUnitID, selectedDeployPlanID]);
+  }, [loadBuildPage, reloadToken, selectedBusinessUnitID, selectedDeployPlanID]);
 
   const selectedBusinessUnitLabel = useMemo(
     () =>
@@ -218,11 +210,11 @@ export function useBuildWorkspace() {
     [deployPlanOptionsSource.options, selectedDeployPlanID],
   );
 
-  const refreshBuilds = () => {
+  const refreshBuilds = useCallback(() => {
     setReloadToken((token) => token + 1);
-  };
+  }, []);
 
-  const loadMoreBuilds = () => {
+  const loadMoreBuilds = useCallback(() => {
     if (
       loading ||
       loadingMoreBuildsRef.current ||
@@ -232,22 +224,22 @@ export function useBuildWorkspace() {
       return;
     }
 
-    void runBuildPageLoadRef.current({
+    void loadBuildPage({
       page: buildPageRef.current + 1,
       mode: 'append',
       businessUnitID: selectedBusinessUnitIDRef.current,
       deployPlanID: selectedDeployPlanIDRef.current,
     });
-  };
+  }, [loadBuildPage, loading]);
 
-  const handleBusinessUnitChange = (value: number | undefined) => {
+  const handleBusinessUnitChange = useCallback((value: number | undefined) => {
     selectedBusinessUnitIDRef.current = value;
     setSelectedBusinessUnitID(value);
     setSelectedDeployPlanID(undefined);
     deployPlanOptionsSource.reset();
-  };
+  }, [deployPlanOptionsSource]);
 
-  const submitTrigger = async (payload: TriggerBuildPayload) => {
+  const submitTrigger = useCallback(async (payload: TriggerBuildPayload) => {
     setTriggering(true);
     try {
       await triggerBuild(payload);
@@ -261,7 +253,7 @@ export function useBuildWorkspace() {
     } finally {
       setTriggering(false);
     }
-  };
+  }, [refreshBuilds]);
 
   return {
     businessUnitOptions: businessUnitOptionsSource.options,
@@ -292,3 +284,5 @@ export function useBuildWorkspace() {
     formatDateTime: formatDateTimeYMDHM,
   };
 }
+
+export type BuildWorkspaceView = ReturnType<typeof useBuildWorkspace>;

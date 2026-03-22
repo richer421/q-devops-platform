@@ -1,25 +1,15 @@
-import { Alert, Empty, Modal, Space, Typography } from 'antd';
+import { Empty, Space } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { DeployPlanDetailDrawer } from '../../components/business/deploy-plan/DeployPlanDetailDrawer';
-import { DeployPlanFormModal } from '../../components/business/deploy-plan/DeployPlanFormModal';
-import { DeployPlanTablePanel } from '../../components/business/deploy-plan/DeployPlanTablePanel';
-import { CIConfigDetailDrawer } from '../../components/business/ci-config/CIConfigDetailDrawer';
-import { CIConfigFormModal } from '../../components/business/ci-config/CIConfigFormModal';
-import { CIConfigTablePanel } from '../../components/business/ci-config/CIConfigTablePanel';
-import { BusinessInstancesPanel } from '../../components/business/BusinessInstancesPanel';
-import { CDConfigDrawer } from '../../components/business/CDConfigDrawer';
 import { BusinessSummary } from '../../components/business/BusinessSummary';
-import { CDConfigsTable, CIConfigsTable } from '../../components/business/ConfigTables';
-import { DeployPlansTable } from '../../components/business/DeployPlansTable';
 import { BasePage } from '../../components/layout/page-container';
 import { PageHeaderTabs, type PageHeaderTabItem } from '../../components/layout/page-header';
 import type { BusinessUnit } from '../../mock';
 import { businessInstanceConfigs, businesses, cdConfigs, ciConfigs, deployPlans } from '../../mock';
-import { useBusinessInstancesTab } from './useBusinessInstancesTab';
-import { useCDConfigTab } from './useCDConfigTab';
-import { useCIConfigTab } from './useCIConfigTab';
-import { useDeployPlanTab } from './useDeployPlanTab';
+import { BusinessCDConfigsSection } from './sections/BusinessCDConfigsSection';
+import { BusinessCIConfigsSection } from './sections/BusinessCIConfigsSection';
+import { BusinessInstancesSection } from './sections/BusinessInstancesSection';
+import { BusinessPlansSection } from './sections/BusinessPlansSection';
 
 type DetailTab = 'plans' | 'ci' | 'cd' | 'instances';
 
@@ -85,39 +75,6 @@ export function BusinessDetailPage() {
     return undefined;
   }, [locationState?.businessDescription, locationState?.businessName, metahubBusinessUnitID, mockBusiness]);
 
-  const businessPlans = useMemo(
-    () => (business ? deployPlans.filter((item) => item.buId === business.id) : []),
-    [business],
-  );
-  const businessCiConfigs = useMemo(
-    () => (business ? ciConfigs.filter((item) => item.buId === business.id) : []),
-    [business],
-  );
-
-  const ciConfigTab = useCIConfigTab({
-    businessUnitID: metahubBusinessUnitID,
-    enabled: activeTab === 'ci',
-  });
-  const deployPlanTab = useDeployPlanTab({
-    businessUnitID: metahubBusinessUnitID,
-    enabled: activeTab === 'plans',
-  });
-
-  const instancesTab = useBusinessInstancesTab({
-    businessKey: id,
-    metahubBusinessUnitID,
-    localInstances: mockInstances,
-  });
-
-  const cdConfigTab = useCDConfigTab({
-    businessKey: id,
-    business,
-    metahubBusinessUnitID,
-    localConfigs: mockCDConfigs,
-    localDeployPlans: businessPlans,
-    enabled: activeTab === 'cd',
-  });
-
   if (!business) {
     return (
       <BasePage
@@ -135,6 +92,9 @@ export function BusinessDetailPage() {
       </BasePage>
     );
   }
+
+  const businessPlans = deployPlans.filter((item) => item.buId === business.id);
+  const businessCiConfigs = ciConfigs.filter((item) => item.buId === business.id);
 
   const tabItems: ReadonlyArray<PageHeaderTabItem<DetailTab>> = [
     { id: 'instances', label: '业务实例' },
@@ -178,199 +138,33 @@ export function BusinessDetailPage() {
       contentStyle={{ padding: 0 }}
     >
       {activeTab === 'instances' && (
-        <BusinessInstancesPanel
-          instances={instancesTab.instances}
-          total={instancesTab.total}
-          page={instancesTab.page}
-          pageSize={instancesTab.pageSize}
-          keyword={instancesTab.keyword}
-          envFilter={instancesTab.envFilter}
-          loading={instancesTab.loading}
-          templates={instancesTab.templates}
-          onPageChange={instancesTab.onPageChange}
-          onKeywordChange={instancesTab.onKeywordChange}
-          onEnvFilterChange={instancesTab.onEnvFilterChange}
-          onCreateInstance={instancesTab.onCreateInstance}
-          onSaveInstance={instancesTab.onSaveInstance}
-          onDeleteInstance={instancesTab.onDeleteInstance}
+        <BusinessInstancesSection
+          businessKey={id}
+          metahubBusinessUnitID={metahubBusinessUnitID}
+          localInstances={mockInstances}
         />
       )}
-      {activeTab === 'plans' &&
-        (metahubBusinessUnitID ? (
-          <>
-            <DeployPlanTablePanel
-              items={deployPlanTab.items}
-              total={deployPlanTab.total}
-              page={deployPlanTab.page}
-              pageSize={deployPlanTab.pageSize}
-              keyword={deployPlanTab.keyword}
-              loading={deployPlanTab.loading}
-              onKeywordChange={deployPlanTab.onKeywordChange}
-              onPageChange={deployPlanTab.onPageChange}
-              onCreate={deployPlanTab.openCreateForm}
-              onView={deployPlanTab.openDetail}
-              onEdit={(item) => {
-                void deployPlanTab.openEditForm(item);
-              }}
-              onDelete={deployPlanTab.requestDelete}
-            />
-
-            <DeployPlanDetailDrawer
-              open={deployPlanTab.detailOpen}
-              loading={deployPlanTab.detailLoading}
-              error={deployPlanTab.detailError}
-              item={deployPlanTab.detailItem}
-              onClose={deployPlanTab.closeDetail}
-              onEdit={(item) => {
-                void deployPlanTab.openEditForm(item);
-              }}
-            />
-
-            <DeployPlanFormModal
-              open={deployPlanTab.formOpen}
-              mode={deployPlanTab.formMode}
-              initialValue={deployPlanTab.formInitialValue}
-              submitting={deployPlanTab.submitting}
-              optionLoading={deployPlanTab.optionLoading}
-              ciOptions={deployPlanTab.ciOptions}
-              cdOptions={deployPlanTab.cdOptions}
-              instanceOptions={deployPlanTab.instanceOptions}
-              onSubmit={(value) => {
-                void deployPlanTab.submitForm(value);
-              }}
-              onClose={deployPlanTab.closeForm}
-            />
-
-            <Modal
-              open={deployPlanTab.deleteTarget != null}
-              title="确认删除部署计划"
-              okText="确认删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true, loading: deployPlanTab.deleting }}
-              onOk={() => {
-                void deployPlanTab.confirmDelete();
-              }}
-              onCancel={deployPlanTab.closeDelete}
-              destroyOnHidden
-            >
-              <Typography.Paragraph>
-                确定要删除部署计划 <Typography.Text strong>{deployPlanTab.deleteTarget?.name}</Typography.Text> 吗？该操作不可撤销。
-              </Typography.Paragraph>
-              {deployPlanTab.deleteError ? <Alert type="error" message={deployPlanTab.deleteError} showIcon /> : null}
-            </Modal>
-          </>
-        ) : (
-          <DeployPlansTable plans={businessPlans} />
-        ))}
-      {activeTab === 'ci' &&
-        (metahubBusinessUnitID ? (
-          <>
-            <CIConfigTablePanel
-              items={ciConfigTab.items}
-              total={ciConfigTab.total}
-              page={ciConfigTab.page}
-              pageSize={ciConfigTab.pageSize}
-              keyword={ciConfigTab.keyword}
-              loading={ciConfigTab.loading}
-              onKeywordChange={ciConfigTab.onKeywordChange}
-              onPageChange={ciConfigTab.onPageChange}
-              onCreate={ciConfigTab.openCreateForm}
-              onView={ciConfigTab.openDetail}
-              onEdit={ciConfigTab.openEditForm}
-              onDelete={ciConfigTab.requestDelete}
-            />
-
-            <CIConfigDetailDrawer
-              open={ciConfigTab.detailOpen}
-              loading={ciConfigTab.detailLoading}
-              error={ciConfigTab.detailError}
-              item={ciConfigTab.detailItem}
-              onClose={ciConfigTab.closeDetail}
-              onEdit={ciConfigTab.openEditForm}
-            />
-
-            <CIConfigFormModal
-              open={ciConfigTab.formOpen}
-              mode={ciConfigTab.formMode}
-              initialValue={ciConfigTab.formInitialValue}
-              submitting={ciConfigTab.submitting}
-              onSubmit={(value) => {
-                void ciConfigTab.submitForm(value);
-              }}
-              onClose={ciConfigTab.closeForm}
-            />
-
-            <Modal
-              open={ciConfigTab.deleteTarget != null}
-              title="确认删除 CI 配置"
-              okText="确认删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true, loading: ciConfigTab.deleting }}
-              onOk={() => {
-                void ciConfigTab.confirmDelete();
-              }}
-              onCancel={ciConfigTab.closeDelete}
-              destroyOnHidden
-            >
-              <Typography.Paragraph>
-                确定要删除 CI 配置 <Typography.Text strong>{ciConfigTab.deleteTarget?.name}</Typography.Text> 吗？该操作不可撤销。
-              </Typography.Paragraph>
-              {ciConfigTab.deleteError ? <Alert type="error" message={ciConfigTab.deleteError} showIcon /> : null}
-            </Modal>
-          </>
-        ) : (
-          <CIConfigsTable configs={businessCiConfigs} />
-        ))}
+      {activeTab === 'plans' && (
+        <BusinessPlansSection
+          businessUnitID={metahubBusinessUnitID}
+          localPlans={businessPlans}
+        />
+      )}
+      {activeTab === 'ci' && (
+        <BusinessCIConfigsSection
+          businessUnitID={metahubBusinessUnitID}
+          localConfigs={businessCiConfigs}
+        />
+      )}
       {activeTab === 'cd' && (
-        <CDConfigsTable
-          configs={cdConfigTab.configs}
-          keyword={cdConfigTab.keyword}
-          releaseRegion={cdConfigTab.releaseRegion}
-          releaseEnv={cdConfigTab.releaseEnv}
-          deploymentMode={cdConfigTab.deploymentMode}
-          page={cdConfigTab.page}
-          pageSize={cdConfigTab.pageSize}
-          total={cdConfigTab.total}
-          loading={cdConfigTab.loading}
-          onKeywordChange={cdConfigTab.onKeywordChange}
-          onReleaseRegionChange={cdConfigTab.onReleaseRegionChange}
-          onReleaseEnvChange={cdConfigTab.onReleaseEnvChange}
-          onDeploymentModeChange={cdConfigTab.onDeploymentModeChange}
-          onPageChange={cdConfigTab.onPageChange}
-          onCreate={cdConfigTab.onCreate}
-          onDetail={cdConfigTab.onDetail}
-          onEdit={cdConfigTab.onEdit}
-          onDelete={cdConfigTab.onDelete}
+        <BusinessCDConfigsSection
+          businessKey={id}
+          business={business}
+          businessUnitID={metahubBusinessUnitID}
+          localConfigs={mockCDConfigs}
+          localDeployPlans={businessPlans}
         />
       )}
-      <Modal
-        open={cdConfigTab.deleteTarget != null}
-        title="确认删除 CD 配置"
-        okText="确认删除"
-        cancelText="取消"
-        okButtonProps={{ danger: true, loading: cdConfigTab.deleting }}
-        onOk={() => {
-          void cdConfigTab.confirmDelete();
-        }}
-        onCancel={cdConfigTab.closeDelete}
-        destroyOnHidden
-      >
-        <Typography.Paragraph>
-          确定要删除 CD 配置 <Typography.Text strong>{cdConfigTab.deleteTarget?.name}</Typography.Text> 吗？该操作不可撤销。
-        </Typography.Paragraph>
-        {cdConfigTab.deleteError ? <Alert type="error" message={cdConfigTab.deleteError} showIcon /> : null}
-      </Modal>
-      <CDConfigDrawer
-        open={cdConfigTab.drawerOpen}
-        mode={cdConfigTab.drawerMode}
-        config={cdConfigTab.drawerConfig}
-        loading={cdConfigTab.drawerLoading}
-        submitting={cdConfigTab.drawerSubmitting}
-        onClose={cdConfigTab.closeDrawer}
-        onSubmit={(value) => {
-          void cdConfigTab.submitDrawer(value);
-        }}
-      />
     </BasePage>
   );
 }

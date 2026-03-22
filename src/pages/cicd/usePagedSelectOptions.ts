@@ -1,5 +1,5 @@
 import { message } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type SelectOption = {
   value: number;
@@ -55,14 +55,6 @@ export function usePagedSelectOptions({
   pageSize = DEFAULT_PAGE_SIZE,
 }: UsePagedSelectOptionsParams) {
   const loadPageRef = useRef(loadPage);
-  const resetStateRef = useRef<() => void>(() => undefined);
-  const runPageLoadRef = useRef<
-    (params: {
-      page: number;
-      keyword: string;
-      mode: 'replace' | 'append';
-    }) => Promise<void>
-  >(async () => undefined);
   const requestIDRef = useRef(0);
   const loadingRef = useRef(false);
   const currentPageRef = useRef(0);
@@ -77,7 +69,7 @@ export function usePagedSelectOptions({
     loadPageRef.current = loadPage;
   }, [loadPage]);
 
-  resetStateRef.current = () => {
+  const resetState = useCallback(() => {
     requestIDRef.current += 1;
     loadingRef.current = false;
     currentPageRef.current = 0;
@@ -86,9 +78,9 @@ export function usePagedSelectOptions({
     optionsRef.current = [];
     setOptions([]);
     setLoading(false);
-  };
+  }, []);
 
-  runPageLoadRef.current = async (params: {
+  const runPageLoad = useCallback(async (params: {
     page: number;
     keyword: string;
     mode: 'replace' | 'append';
@@ -138,52 +130,52 @@ export function usePagedSelectOptions({
         setLoading(false);
       }
     }
-  };
+  }, [errorMessage, pageSize]);
 
   useEffect(() => {
     if (!enabled) {
-      resetStateRef.current();
+      resetState();
       return;
     }
 
-    void runPageLoadRef.current({
+    void runPageLoad({
       page: 1,
       keyword: keywordRef.current,
       mode: 'replace',
     });
-  }, [enabled, pageSize, reloadToken]);
+  }, [enabled, pageSize, reloadToken, resetState, runPageLoad]);
 
-  const search = (keyword: string) => {
+  const search = useCallback((keyword: string) => {
     if (!enabled) {
       return;
     }
 
     const trimmedKeyword = keyword.trim();
-    void runPageLoadRef.current({
+    void runPageLoad({
       page: 1,
       keyword: trimmedKeyword,
       mode: 'replace',
     });
-  };
+  }, [enabled, runPageLoad]);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!enabled || loadingRef.current || optionsRef.current.length >= totalRef.current) {
       return;
     }
 
-    void runPageLoadRef.current({
+    void runPageLoad({
       page: currentPageRef.current + 1,
       keyword: keywordRef.current,
       mode: 'append',
     });
-  };
+  }, [enabled, runPageLoad]);
 
-  const reset = () => {
-    resetStateRef.current();
+  const reset = useCallback(() => {
+    resetState();
     if (enabled) {
       setReloadToken((token) => token + 1);
     }
-  };
+  }, [enabled, resetState]);
 
   return {
     options,
