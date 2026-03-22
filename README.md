@@ -38,9 +38,14 @@ make dev
 
 ```bash
 make lint
-make test
 make build
 ```
+
+## Frontend Testing
+
+- 前端测试与页面验收默认基于 Playwright MCP 执行。
+- 涉及业务流程、交互链路或真实联调时，优先使用 Playwright MCP 做真实页面验证。
+- 验收完成后，应保留关键步骤、结果以及必要的截图或报告路径。
 
 ## Docker
 

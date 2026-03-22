@@ -1,5 +1,5 @@
 import { message } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createBusinessUnitDeployPlan,
   deleteDeployPlan,
@@ -62,6 +62,8 @@ export function useDeployPlanTab({ businessUnitID, enabled }: UseDeployPlanTabOp
   const [deleteTarget, setDeleteTarget] = useState<DeployPlan | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const detailRequestIDRef = useRef(0);
+  const formRequestIDRef = useRef(0);
 
   useEffect(() => {
     setItems([]);
@@ -88,6 +90,8 @@ export function useDeployPlanTab({ businessUnitID, enabled }: UseDeployPlanTabOp
     setDeleteTarget(null);
     setDeleteError('');
     setDeleting(false);
+    detailRequestIDRef.current += 1;
+    formRequestIDRef.current += 1;
   }, [businessUnitID]);
 
   useEffect(() => {
@@ -191,34 +195,30 @@ export function useDeployPlanTab({ businessUnitID, enabled }: UseDeployPlanTabOp
       return;
     }
 
-    let cancelled = false;
+    const requestID = detailRequestIDRef.current + 1;
+    detailRequestIDRef.current = requestID;
     setDetailLoading(true);
     setDetailError('');
 
     void getDeployPlan(detailTargetID)
       .then((result) => {
-        if (cancelled) {
+        if (requestID !== detailRequestIDRef.current) {
           return;
         }
         setDetailItem(result);
       })
       .catch((error) => {
-        if (cancelled) {
+        if (requestID !== detailRequestIDRef.current) {
           return;
         }
         console.error(error);
         setDetailError(getErrorMessage(error, '部署计划详情加载失败'));
       })
       .finally(() => {
-        if (cancelled) {
-          return;
+        if (requestID === detailRequestIDRef.current) {
+          setDetailLoading(false);
         }
-        setDetailLoading(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
   }, [businessUnitID, detailOpen, detailTargetID, enabled]);
 
   const openCreateForm = () => {
@@ -238,9 +238,14 @@ export function useDeployPlanTab({ businessUnitID, enabled }: UseDeployPlanTabOp
     setEditingPlanID(deployPlanID);
     setFormInitialValue(deployPlanToFormValue(item));
     setFormOpen(true);
+    const requestID = formRequestIDRef.current + 1;
+    formRequestIDRef.current = requestID;
 
     try {
       const latest = await getDeployPlan(deployPlanID);
+      if (requestID !== formRequestIDRef.current) {
+        return;
+      }
       setFormInitialValue(deployPlanToFormValue(latest));
       if (detailTargetID === deployPlanID) {
         setDetailItem(latest);
@@ -252,6 +257,7 @@ export function useDeployPlanTab({ businessUnitID, enabled }: UseDeployPlanTabOp
   };
 
   const closeForm = () => {
+    formRequestIDRef.current += 1;
     setFormOpen(false);
     setSubmitting(false);
   };
@@ -300,6 +306,7 @@ export function useDeployPlanTab({ businessUnitID, enabled }: UseDeployPlanTabOp
   };
 
   const closeDetail = () => {
+    detailRequestIDRef.current += 1;
     setDetailOpen(false);
     setDetailTargetID(null);
     setDetailError('');

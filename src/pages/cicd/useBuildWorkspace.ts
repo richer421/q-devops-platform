@@ -48,6 +48,14 @@ export function useBuildWorkspace() {
   const selectedBusinessUnitIDRef = useRef<number | undefined>(undefined);
   const selectedDeployPlanIDRef = useRef<number | undefined>(undefined);
   const buildRequestIDRef = useRef(0);
+  const runBuildPageLoadRef = useRef<
+    (params: {
+      page: number;
+      mode: 'replace' | 'append';
+      businessUnitID?: number;
+      deployPlanID?: number;
+    }) => Promise<void>
+  >(async () => undefined);
   const buildPageRef = useRef(0);
   const buildTotalRef = useRef(0);
   const buildsRef = useRef<BuildRecord[]>([]);
@@ -121,7 +129,7 @@ export function useBuildWorkspace() {
     selectedDeployPlanID,
   ]);
 
-  const runBuildPageLoad = async (params: {
+  runBuildPageLoadRef.current = async (params: {
     page: number;
     mode: 'replace' | 'append';
     businessUnitID?: number;
@@ -177,18 +185,16 @@ export function useBuildWorkspace() {
         setBuildTotal(0);
       }
     } finally {
-      if (requestID !== buildRequestIDRef.current) {
-        return;
+      if (requestID === buildRequestIDRef.current) {
+        loadingMoreBuildsRef.current = false;
+        setLoading(false);
+        setLoadingMoreBuilds(false);
       }
-
-      loadingMoreBuildsRef.current = false;
-      setLoading(false);
-      setLoadingMoreBuilds(false);
     }
   };
 
   useEffect(() => {
-    void runBuildPageLoad({
+    void runBuildPageLoadRef.current({
       page: 1,
       mode: 'replace',
       businessUnitID: selectedBusinessUnitID,
@@ -226,7 +232,7 @@ export function useBuildWorkspace() {
       return;
     }
 
-    void runBuildPageLoad({
+    void runBuildPageLoadRef.current({
       page: buildPageRef.current + 1,
       mode: 'append',
       businessUnitID: selectedBusinessUnitIDRef.current,

@@ -1,7 +1,7 @@
 PNPM := pnpm
 IMAGE ?= q-devops-platform:local
 
-.PHONY: install dev build lint test preview docker-build
+.PHONY: install dev build lint preview docker-build
 
 install:
 	$(PNPM) install
@@ -14,9 +14,6 @@ build:
 
 lint:
 	$(PNPM) lint
-
-test:
-	$(PNPM) test
 
 preview:
 	$(PNPM) preview

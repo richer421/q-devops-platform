@@ -54,6 +54,7 @@ export function CicdPage() {
   const [modalDeployPlanID, setModalDeployPlanID] = useState<number>();
   const modalBusinessUnitIDRef = useRef<number | undefined>(undefined);
   const buildListLoadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreBuildsRef = useRef(buildWorkspace.loadMoreBuilds);
 
   const tabItems: ReadonlyArray<PageHeaderTabItem<TabKey>> = useMemo(
     () => [
@@ -79,6 +80,10 @@ export function CicdPage() {
   useEffect(() => {
     modalBusinessUnitIDRef.current = modalBusinessUnitID;
   }, [modalBusinessUnitID]);
+
+  useEffect(() => {
+    loadMoreBuildsRef.current = buildWorkspace.loadMoreBuilds;
+  }, [buildWorkspace.loadMoreBuilds]);
 
   const modalBusinessUnitOptionsSource = usePagedSelectOptions({
     enabled: showBuild,
@@ -198,7 +203,7 @@ export function CicdPage() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          buildWorkspace.loadMoreBuilds();
+          loadMoreBuildsRef.current();
         }
       },
       {
@@ -216,7 +221,6 @@ export function CicdPage() {
     buildWorkspace.hasMoreBuilds,
     buildWorkspace.loading,
     buildWorkspace.loadingMoreBuilds,
-    buildWorkspace.loadMoreBuilds,
     tab,
   ]);
 

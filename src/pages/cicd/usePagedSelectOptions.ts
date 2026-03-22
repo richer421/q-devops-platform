@@ -55,6 +55,14 @@ export function usePagedSelectOptions({
   pageSize = DEFAULT_PAGE_SIZE,
 }: UsePagedSelectOptionsParams) {
   const loadPageRef = useRef(loadPage);
+  const resetStateRef = useRef<() => void>(() => undefined);
+  const runPageLoadRef = useRef<
+    (params: {
+      page: number;
+      keyword: string;
+      mode: 'replace' | 'append';
+    }) => Promise<void>
+  >(async () => undefined);
   const requestIDRef = useRef(0);
   const loadingRef = useRef(false);
   const currentPageRef = useRef(0);
@@ -69,7 +77,7 @@ export function usePagedSelectOptions({
     loadPageRef.current = loadPage;
   }, [loadPage]);
 
-  const resetState = () => {
+  resetStateRef.current = () => {
     requestIDRef.current += 1;
     loadingRef.current = false;
     currentPageRef.current = 0;
@@ -80,7 +88,7 @@ export function usePagedSelectOptions({
     setLoading(false);
   };
 
-  const runPageLoad = async (params: {
+  runPageLoadRef.current = async (params: {
     page: number;
     keyword: string;
     mode: 'replace' | 'append';
@@ -134,11 +142,11 @@ export function usePagedSelectOptions({
 
   useEffect(() => {
     if (!enabled) {
-      resetState();
+      resetStateRef.current();
       return;
     }
 
-    void runPageLoad({
+    void runPageLoadRef.current({
       page: 1,
       keyword: keywordRef.current,
       mode: 'replace',
@@ -151,7 +159,7 @@ export function usePagedSelectOptions({
     }
 
     const trimmedKeyword = keyword.trim();
-    void runPageLoad({
+    void runPageLoadRef.current({
       page: 1,
       keyword: trimmedKeyword,
       mode: 'replace',
@@ -163,7 +171,7 @@ export function usePagedSelectOptions({
       return;
     }
 
-    void runPageLoad({
+    void runPageLoadRef.current({
       page: currentPageRef.current + 1,
       keyword: keywordRef.current,
       mode: 'append',
@@ -171,7 +179,7 @@ export function usePagedSelectOptions({
   };
 
   const reset = () => {
-    resetState();
+    resetStateRef.current();
     if (enabled) {
       setReloadToken((token) => token + 1);
     }
