@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppRouter } from '../../app/router/routes';
+import { __resetBusinessUnitListCacheForTest } from '../../lib/metahub-business-unit';
 
 const originalFetch = globalThis.fetch;
 const webAppLabel = 'web-app (https://github.com/org/web-app)';
@@ -28,6 +29,7 @@ describe('business list page', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     globalThis.fetch = originalFetch;
+    __resetBusinessUnitListCacheForTest();
   });
 
   it('renders the fetched business list on the default route', async () => {

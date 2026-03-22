@@ -67,6 +67,8 @@ export type UpdateBusinessUnitPayload = {
 };
 
 const METAHUB_BASE_URL = (import.meta.env.VITE_METAHUB_BASE_URL as string | undefined)?.trim() ?? '';
+const businessUnitListCache = new Map<string, BusinessUnitListPage>();
+const businessUnitListInFlight = new Map<string, Promise<BusinessUnitListPage>>();
 
 function withBase(path: string) {
   if (!METAHUB_BASE_URL) {
@@ -114,21 +116,50 @@ function fromDTO(dto: MetahubBusinessUnitDTO): BusinessUnitRecord {
   };
 }
 
-export async function listBusinessUnits(filters: BusinessUnitListFilters): Promise<BusinessUnitListPage> {
+function listKey(filters: BusinessUnitListFilters) {
   const query = new URLSearchParams();
   query.set('page', String(filters.page));
   query.set('page_size', String(filters.pageSize));
   if (filters.keyword?.trim()) {
     query.set('keyword', filters.keyword.trim());
   }
+  return query.toString();
+}
 
-  const dto = await request<MetahubBusinessUnitPageDTO>(`/api/v1/business-units?${query.toString()}`);
-  return {
-    items: dto.items.map(fromDTO),
-    total: dto.total,
-    page: dto.page,
-    pageSize: dto.page_size,
-  };
+function invalidateBusinessUnitListCache() {
+  businessUnitListCache.clear();
+  businessUnitListInFlight.clear();
+}
+
+export async function listBusinessUnits(filters: BusinessUnitListFilters): Promise<BusinessUnitListPage> {
+  const key = listKey(filters);
+  const cached = businessUnitListCache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const inFlight = businessUnitListInFlight.get(key);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const pending = request<MetahubBusinessUnitPageDTO>(`/api/v1/business-units?${key}`).then((dto) => {
+    const page = {
+      items: dto.items.map(fromDTO),
+      total: dto.total,
+      page: dto.page,
+      pageSize: dto.page_size,
+    };
+    businessUnitListCache.set(key, page);
+    businessUnitListInFlight.delete(key);
+    return page;
+  }).catch((error) => {
+    businessUnitListInFlight.delete(key);
+    throw error;
+  });
+
+  businessUnitListInFlight.set(key, pending);
+  return pending;
 }
 
 export async function createBusinessUnit(payload: CreateBusinessUnitPayload): Promise<BusinessUnitRecord> {
@@ -140,6 +171,7 @@ export async function createBusinessUnit(payload: CreateBusinessUnitPayload): Pr
       project_id: payload.projectId,
     }),
   });
+  invalidateBusinessUnitListCache();
   return fromDTO(dto);
 }
 
@@ -151,6 +183,7 @@ export async function updateBusinessUnit(id: number, payload: UpdateBusinessUnit
       description: payload.description,
     }),
   });
+  invalidateBusinessUnitListCache();
   return fromDTO(dto);
 }
 
@@ -158,4 +191,9 @@ export async function deleteBusinessUnit(id: number): Promise<void> {
   await request<Record<string, never>>(`/api/v1/business-units/${id}`, {
     method: 'DELETE',
   });
+  invalidateBusinessUnitListCache();
+}
+
+export function __resetBusinessUnitListCacheForTest() {
+  invalidateBusinessUnitListCache();
 }

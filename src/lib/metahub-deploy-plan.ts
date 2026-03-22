@@ -61,6 +61,7 @@ type UpsertDeployPlanRequest = {
 };
 
 const METAHUB_BASE_URL = (import.meta.env.VITE_METAHUB_BASE_URL as string | undefined)?.trim() ?? '';
+const deployPlanListInFlight = new Map<string, Promise<DeployPlanListPage>>();
 
 function withBase(path: string) {
   if (!METAHUB_BASE_URL) {
@@ -158,13 +159,25 @@ export async function listBusinessUnitDeployPlans(
     query.set('keyword', filters.keyword.trim());
   }
 
-  const dto = await request<MetahubDeployPlanPageDTO>(`/api/v1/business-units/${businessUnitID}/deploy-plans?${query.toString()}`);
-  return {
-    items: dto.items.map(deployPlanFromMetahub),
-    total: dto.total,
-    page: dto.page,
-    pageSize: dto.page_size,
-  };
+  const key = `${businessUnitID}:${query.toString()}`;
+  const inFlight = deployPlanListInFlight.get(key);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const pending = request<MetahubDeployPlanPageDTO>(`/api/v1/business-units/${businessUnitID}/deploy-plans?${query.toString()}`)
+    .then((dto) => ({
+      items: dto.items.map(deployPlanFromMetahub),
+      total: dto.total,
+      page: dto.page,
+      pageSize: dto.page_size,
+    }))
+    .finally(() => {
+      deployPlanListInFlight.delete(key);
+    });
+
+  deployPlanListInFlight.set(key, pending);
+  return pending;
 }
 
 export async function getDeployPlan(deployPlanID: number): Promise<DeployPlan> {

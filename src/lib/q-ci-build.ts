@@ -138,6 +138,7 @@ export type TriggerBuildResult = {
 
 const QCI_BASE_URL =
   (import.meta.env.VITE_Q_CI_BASE_URL as string | undefined)?.trim() ?? '/q-ci-api';
+const buildListInFlight = new Map<string, Promise<BuildListPage>>();
 
 function withBase(path: string) {
   const normalizedBase = QCI_BASE_URL.trim();
@@ -228,10 +229,6 @@ function fromArtifact(dto: QCIArtifactDTO): BuildRecord {
 }
 
 export async function listBuilds(filters: BuildListFilters): Promise<BuildListPage> {
-  if (!filters.businessUnitID && !filters.deployPlanID) {
-    return { items: [], total: 0 };
-  }
-
   const query = new URLSearchParams();
   query.set('page', String(filters.page));
   query.set('page_size', String(filters.pageSize));
@@ -241,11 +238,23 @@ export async function listBuilds(filters: BuildListFilters): Promise<BuildListPa
     query.set('business_unit_id', String(filters.businessUnitID));
   }
 
-  const dto = await request<QCIArtifactListDTO>(`/api/v1/artifacts?${query.toString()}`);
-  return {
-    items: dto.list.map(fromArtifact),
-    total: dto.total,
-  };
+  const key = query.toString();
+  const inFlight = buildListInFlight.get(key);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const pending = request<QCIArtifactListDTO>(`/api/v1/artifacts?${key}`)
+    .then((dto) => ({
+      items: dto.list.map(fromArtifact),
+      total: dto.total,
+    }))
+    .finally(() => {
+      buildListInFlight.delete(key);
+    });
+
+  buildListInFlight.set(key, pending);
+  return pending;
 }
 
 export async function triggerBuild(payload: TriggerBuildPayload): Promise<TriggerBuildResult> {

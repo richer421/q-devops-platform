@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  __resetBusinessUnitListCacheForTest,
   createBusinessUnit,
   deleteBusinessUnit,
   listBusinessUnits,
@@ -12,6 +13,7 @@ describe('metahub business-unit client', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     globalThis.fetch = originalFetch;
+    __resetBusinessUnitListCacheForTest();
   });
 
   it('lists business units with pagination and keyword params', async () => {
@@ -148,5 +150,91 @@ describe('metahub business-unit client', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/business-units/9', expect.objectContaining({
       method: 'DELETE',
     }));
+  });
+
+  it('deduplicates in-flight list requests with the same query', async () => {
+    let resolveResponse: ((value: unknown) => void) | undefined;
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const first = listBusinessUnits({ page: 1, pageSize: 200 });
+    const second = listBusinessUnits({ page: 1, pageSize: 200 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolveResponse?.({
+      ok: true,
+      json: async () => ({
+        code: 0,
+        message: 'ok',
+        data: {
+          items: [],
+          total: 0,
+          page: 1,
+          page_size: 200,
+        },
+      }),
+    });
+
+    await expect(first).resolves.toMatchObject({ total: 0, page: 1, pageSize: 200 });
+    await expect(second).resolves.toMatchObject({ total: 0, page: 1, pageSize: 200 });
+  });
+
+  it('invalidates cached list results after create', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          message: 'ok',
+          data: {
+            items: [],
+            total: 0,
+            page: 1,
+            page_size: 200,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          message: 'ok',
+          data: {
+            id: 10,
+            name: 'q-demo',
+            description: 'demo',
+            project_id: 1,
+            created_at: '2026-03-22T16:00:00Z',
+            updated_at: '2026-03-22T16:00:00Z',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          message: 'ok',
+          data: {
+            items: [],
+            total: 0,
+            page: 1,
+            page_size: 200,
+          },
+        }),
+      });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await listBusinessUnits({ page: 1, pageSize: 200 });
+    await createBusinessUnit({ name: 'q-demo', description: 'demo', projectId: 1 });
+    await listBusinessUnits({ page: 1, pageSize: 200 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

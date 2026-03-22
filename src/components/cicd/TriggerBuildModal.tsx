@@ -1,6 +1,6 @@
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { Form, Input, Modal, Radio, Select, Typography } from 'antd';
-import { useEffect } from 'react';
+import { useEffect, type UIEvent } from 'react';
 import type { TriggerBuildPayload } from '../../lib/q-ci-build';
 
 const { Text } = Typography;
@@ -17,10 +17,15 @@ type TriggerBuildModalProps = {
   deployPlanOptions: ReadonlyArray<SelectOption>;
   businessUnitID?: number;
   deployPlanID?: number;
-  optionLoading?: boolean;
+  businessUnitOptionLoading?: boolean;
+  deployPlanOptionLoading?: boolean;
   submitting?: boolean;
   onBusinessUnitChange: (value: number | undefined) => void;
   onDeployPlanChange: (value: number | undefined) => void;
+  onBusinessUnitSearch: (keyword: string) => void;
+  onDeployPlanSearch: (keyword: string) => void;
+  onBusinessUnitLoadMore: () => void;
+  onDeployPlanLoadMore: () => void;
   onSubmit: (value: TriggerBuildPayload) => Promise<void>;
 };
 
@@ -38,13 +43,23 @@ export function TriggerBuildModal({
   deployPlanOptions,
   businessUnitID,
   deployPlanID,
-  optionLoading = false,
+  businessUnitOptionLoading = false,
+  deployPlanOptionLoading = false,
   submitting = false,
   onBusinessUnitChange,
   onDeployPlanChange,
+  onBusinessUnitSearch,
+  onDeployPlanSearch,
+  onBusinessUnitLoadMore,
+  onDeployPlanLoadMore,
   onSubmit,
 }: TriggerBuildModalProps) {
   const [form] = Form.useForm();
+
+  const isNearPopupBottom = (event: UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    return target.scrollHeight - target.scrollTop - target.clientHeight < 24;
+  };
 
   useEffect(() => {
     if (!open) {
@@ -99,7 +114,15 @@ export function TriggerBuildModal({
             data-testid="trigger-build-business-unit"
             placeholder="请选择业务单元"
             options={[...businessUnitOptions]}
-            loading={optionLoading}
+            loading={businessUnitOptionLoading}
+            showSearch
+            filterOption={false}
+            onSearch={onBusinessUnitSearch}
+            onPopupScroll={(event) => {
+              if (isNearPopupBottom(event)) {
+                onBusinessUnitLoadMore();
+              }
+            }}
             onChange={(value) => {
               onBusinessUnitChange(value);
               onDeployPlanChange(undefined);
@@ -117,8 +140,16 @@ export function TriggerBuildModal({
             data-testid="trigger-build-deploy-plan"
             placeholder="请选择部署计划"
             options={[...deployPlanOptions]}
-            loading={optionLoading}
+            loading={deployPlanOptionLoading}
             disabled={!businessUnitID}
+            showSearch
+            filterOption={false}
+            onSearch={onDeployPlanSearch}
+            onPopupScroll={(event) => {
+              if (isNearPopupBottom(event)) {
+                onDeployPlanLoadMore();
+              }
+            }}
             onChange={onDeployPlanChange}
           />
         </Form.Item>
