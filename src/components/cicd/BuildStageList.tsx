@@ -1,34 +1,39 @@
 import type { BuildRecord } from '../../lib/q-ci-build';
 import { CicdStepContainer } from './CicdStepContainer';
 import { BuildStageItem } from './BuildStageItem';
+import { getCurrentBuildStage } from './buildStagePresentation';
 
 type BuildStageListProps = {
   build: BuildRecord;
 };
 
 export function BuildStageList({ build }: BuildStageListProps) {
+  const openStageIndex = build.stages.findIndex(
+    (stage) => stage.status === 'running' || stage.status === 'failed',
+  );
+  const currentStage = getCurrentBuildStage(build);
+
   return (
-    <section
-      style={{
-        display: 'grid',
-        gap: 8,
-        padding: 12,
-        borderRadius: 12,
-        background: '#F7F8FA',
-        border: '1px solid #EAEDF1',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#4E5969', letterSpacing: '0.02em' }}>
-          构建阶段
-        </span>
-        <span style={{ fontSize: 12, color: '#86909C' }}>{build.stages.length} steps</span>
-      </div>
+    <section style={{ display: 'grid', gap: 12 }}>
+      {currentStage ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#86909C', fontSize: 12 }}>
+          <span>当前阶段</span>
+          <span style={{ color: '#1D2129', fontWeight: 600 }}>{currentStage.title}</span>
+        </div>
+      ) : null}
 
       {build.stages.length > 0 ? (
-        build.stages.map((stage) => (
-          <BuildStageItem key={`${build.id}-${stage.name}`} buildID={build.id} stage={stage} />
-        ))
+        <div style={{ display: 'grid', gap: 4 }}>
+          {build.stages.map((stage, index) => (
+            <BuildStageItem
+              key={`${build.id}-${stage.name}`}
+              stage={stage}
+              index={index}
+              total={build.stages.length}
+              defaultOpen={openStageIndex === index}
+            />
+          ))}
+        </div>
       ) : (
         <div
           style={{

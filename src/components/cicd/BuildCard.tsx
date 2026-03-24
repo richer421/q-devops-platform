@@ -3,14 +3,14 @@ import {
   CheckCircleFilled,
   ClockCircleOutlined,
   CloseCircleFilled,
-  SyncOutlined,
   LinkOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { Button, Tag, Typography } from 'antd';
-import { Package } from 'lucide-react';
 import { formatDateTimeYMDHM } from '../../lib/date-time';
 import type { BuildRecord } from '../../lib/q-ci-build';
 import { BuildStageList } from './BuildStageList';
+import { getCurrentBuildStage } from './buildStagePresentation';
 import { CicdEntryCard } from './CicdEntryCard';
 import { ElapsedTimer } from './shared';
 
@@ -18,7 +18,7 @@ type BuildCardProps = {
   build: BuildRecord;
 };
 
-const { Text, Link } = Typography;
+const { Text } = Typography;
 
 const CARD_BORDER: Record<BuildRecord['status'], string> = {
   pending: '#FF7D00',
@@ -27,7 +27,10 @@ const CARD_BORDER: Record<BuildRecord['status'], string> = {
   running: '#1664FF',
 };
 
-const BUILD_TAG: Record<BuildRecord['status'], { color: string; label: string }> = {
+const BUILD_TAG: Record<
+  BuildRecord['status'],
+  { color: string; label: string }
+> = {
   pending: { color: 'warning', label: '排队中' },
   success: { color: 'success', label: '成功' },
   failed: { color: 'error', label: '失败' },
@@ -56,32 +59,16 @@ function formatCommitLabel(build: BuildRecord) {
   return '-';
 }
 
-function formatDuration(build: BuildRecord) {
-  if (!build.buildStartedAt || !build.buildFinishedAt) {
-    return '—';
-  }
-
-  const startedAt = Date.parse(build.buildStartedAt);
-  const finishedAt = Date.parse(build.buildFinishedAt);
-  if (Number.isNaN(startedAt) || Number.isNaN(finishedAt) || finishedAt < startedAt) {
-    return '—';
-  }
-
-  const durationSeconds = Math.round((finishedAt - startedAt) / 1000);
-  if (durationSeconds < 60) {
-    return `${durationSeconds}s`;
-  }
-
-  const minutes = Math.floor(durationSeconds / 60);
-  const seconds = durationSeconds % 60;
-  return `${minutes}分${seconds}秒`;
+function formatRefLabel(build: BuildRecord) {
+  const refType = formatRefTypeLabel(build.buildSource.refType);
+  return `${refType}: ${build.buildSource.refValue}`;
 }
 
 export function BuildCard({ build }: BuildCardProps) {
   const buildTag = BUILD_TAG[build.status];
+  const currentStage = getCurrentBuildStage(build);
   const commitLabel = formatCommitLabel(build);
   const startedAt = formatDateTimeYMDHM(build.buildStartedAt || build.createdAt);
-  const finishedAt = formatDateTimeYMDHM(build.buildFinishedAt);
 
   return (
     <CicdEntryCard
@@ -108,20 +95,32 @@ export function BuildCard({ build }: BuildCardProps) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <Tag icon={<BranchesOutlined />} color="blue" style={{ fontSize: 11 }}>
-              {formatRefTypeLabel(build.buildSource.refType)} · {build.buildSource.refValue}
-            </Tag>
-            <code
+            <div
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '3px 10px',
+                borderRadius: 8,
+                border: '1px solid #91C3FF',
+                background: '#F2F8FF',
+                color: '#1664FF',
                 fontSize: 11,
-                background: '#F2F3F5',
-                padding: '2px 6px',
-                borderRadius: 4,
-                color: '#86909C',
+                lineHeight: 1,
               }}
             >
-              {commitLabel}
-            </code>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <BranchesOutlined />
+                <span>{formatRefLabel(build)}</span>
+              </span>
+              <span style={{ width: 1, alignSelf: 'stretch', background: '#BFD4FF' }} />
+              <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                commit {commitLabel}
+              </span>
+            </div>
+            <span style={{ color: '#86909C', fontSize: 12 }}>
+              当前阶段 {currentStage?.title ?? '未开始'}
+            </span>
             <span style={{ color: '#86909C', fontSize: 12 }}>业务单元 #{build.businessUnitID}</span>
             <span style={{ color: '#C9CDD4', fontSize: 12 }}>#{build.id}</span>
           </div>
@@ -130,14 +129,10 @@ export function BuildCard({ build }: BuildCardProps) {
       headerExtra={
         <>
           {build.status === 'running' ? (
-            <ElapsedTimer running />
+            <ElapsedTimer running startedAt={build.buildStartedAt} finishedAt={build.buildFinishedAt} />
           ) : (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#86909C', fontSize: 12 }}>
-              <ClockCircleOutlined style={{ fontSize: 11 }} />
-              {formatDuration(build)}
-            </span>
+            <span style={{ color: '#86909C', fontSize: 12 }}>{startedAt}</span>
           )}
-          <span style={{ color: '#C9CDD4', fontSize: 12 }}>{startedAt}</span>
           {build.jenkinsBuildURL ? (
             <Button
               size="small"
@@ -154,24 +149,10 @@ export function BuildCard({ build }: BuildCardProps) {
         </>
       }
     >
-      <div style={{ padding: '12px 20px' }}>
+      <div style={{ padding: '12px 20px', display: 'grid', gap: 12 }}>
         <BuildStageList build={build} />
-      </div>
 
-      <div style={{ padding: '0 20px 16px' }}>
         <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ display: 'grid', gap: 4 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              仓库地址
-            </Text>
-            <code>{build.buildSource.repoURL || '-'}</code>
-          </div>
-          <div style={{ display: 'grid', gap: 4 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              结束时间
-            </Text>
-            <span>{finishedAt}</span>
-          </div>
           <div style={{ display: 'grid', gap: 4 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
               镜像摘要
@@ -188,45 +169,8 @@ export function BuildCard({ build }: BuildCardProps) {
               </span>
             </div>
           ) : null}
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            阶段状态由 Jenkins 模板回调驱动；排障和日志仍以 Jenkins 构建详情为准。
-          </Text>
-          {build.jenkinsBuildURL ? (
-            <Link href={build.jenkinsBuildURL} target="_blank" rel="noreferrer">
-              打开 Jenkins 构建详情
-            </Link>
-          ) : null}
         </div>
       </div>
-
-      {build.imageRef ? (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            margin: '0 20px 16px',
-            padding: '8px 12px',
-            background: '#F7F8FA',
-            border: '1px solid #E5E6EB',
-            borderRadius: 8,
-          }}
-        >
-          <Package size={13} color="#7B61FF" />
-          <span style={{ color: '#86909C', fontSize: 12, flexShrink: 0 }}>构建产物</span>
-          <code
-            style={{
-              color: '#4E5969',
-              fontSize: 11,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {build.imageRef}
-          </code>
-        </div>
-      ) : null}
     </CicdEntryCard>
   );
 }

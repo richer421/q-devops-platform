@@ -6,9 +6,9 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import { useEffect, useRef, useState } from 'react';
-import type { BuildStep } from '../../mock';
+import { formatElapsedDuration } from './buildStagePresentation';
 
-export type StepStatus = BuildStep['status'];
+export type StepStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped';
 
 const AVATAR_COLORS: Record<string, string> = {
   zhangwei: '#1664FF',
@@ -141,14 +141,22 @@ export function TerminalLog({ lines, animate }: { lines: string[]; animate: bool
   );
 }
 
-export function ElapsedTimer({ running }: { running: boolean }) {
-  const [secs, setSecs] = useState(182);
+export function ElapsedTimer({
+  running,
+  startedAt,
+  finishedAt,
+}: {
+  running: boolean;
+  startedAt?: string;
+  finishedAt?: string;
+}) {
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (!running) {
       return;
     }
-    const timer = window.setInterval(() => setSecs((value) => value + 1), 1000);
+    const timer = window.setInterval(() => setTick((value) => value + 1), 1000);
     return () => window.clearInterval(timer);
   }, [running]);
 
@@ -156,13 +164,15 @@ export function ElapsedTimer({ running }: { running: boolean }) {
     return null;
   }
 
-  const minutes = Math.floor(secs / 60);
-  const seconds = secs % 60;
+  const duration = formatElapsedDuration(startedAt, finishedAt);
+  const fallbackSeconds = 182 + tick;
+  const fallbackMinutes = Math.floor(fallbackSeconds / 60);
+  const fallbackRemainSeconds = fallbackSeconds % 60;
 
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#1664FF', fontSize: 12 }}>
       <ClockCircleOutlined style={{ fontSize: 11 }} />
-      {minutes}m {String(seconds).padStart(2, '0')}s
+      {duration ?? `${fallbackMinutes}m ${String(fallbackRemainSeconds).padStart(2, '0')}s`}
     </span>
   );
 }

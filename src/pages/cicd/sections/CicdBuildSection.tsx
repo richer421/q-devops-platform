@@ -59,7 +59,7 @@ export function CicdBuildSection({ workspace }: CicdBuildSectionProps) {
         flex: 1,
         minHeight: 0,
         flexDirection: 'column',
-        gap: 16,
+        gap: 2,
       }}
     >
       <ConfigProvider
@@ -82,7 +82,7 @@ export function CicdBuildSection({ workspace }: CicdBuildSectionProps) {
             padding: '18px 20px',
             background: '#F7F8FA',
             border: '1px solid #E5E6EB',
-            borderRadius: 16,
+            borderRadius: 0,
           }}
         >
           <div style={{ display: 'grid' }}>
@@ -136,7 +136,7 @@ export function CicdBuildSection({ workspace }: CicdBuildSectionProps) {
         data-testid="build-list-scroll-container"
         style={{
           display: 'grid',
-          gap: 16,
+          gap: 2,
           flex: 1,
           minHeight: 0,
           overflow: 'auto',

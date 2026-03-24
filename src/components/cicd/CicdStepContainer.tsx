@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import type { StepStatus } from './shared';
 import { ElapsedTimer, StepIcon } from './shared';
 
-export type CicdStepDetailKind = 'terminal' | 'rollout';
+export type CicdStepDetailKind = 'terminal' | 'rollout' | 'panel';
 
 type CicdStepContainerProps = {
   title: string;
