@@ -1,5 +1,5 @@
 import type { BuildRecord } from '@/utils/api/q-ci/build';
-import { CicdStepContainer } from './CicdStepContainer';
+import { CicdStepContainer } from '@/components/cicd/shared';
 import { BuildStageItem } from './BuildStageItem';
 import { getCurrentBuildStage } from './buildStagePresentation';
 

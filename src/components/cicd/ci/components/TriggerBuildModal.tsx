@@ -1,6 +1,6 @@
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { Form, Input, Modal, Radio, Select, Typography } from 'antd';
-import { useEffect, type UIEvent } from 'react';
+import type { UIEvent } from 'react';
 import type { TriggerBuildPayload } from '@/utils/api/q-ci/build';
 
 const { Text } = Typography;
@@ -15,8 +15,8 @@ type TriggerBuildModalProps = {
   onClose: () => void;
   businessUnitOptions: ReadonlyArray<SelectOption>;
   deployPlanOptions: ReadonlyArray<SelectOption>;
-  businessUnitID?: number;
-  deployPlanID?: number;
+  initialBusinessUnitID?: number;
+  initialDeployPlanID?: number;
   businessUnitOptionLoading?: boolean;
   deployPlanOptionLoading?: boolean;
   submitting?: boolean;
@@ -41,8 +41,8 @@ export function TriggerBuildModal({
   onClose,
   businessUnitOptions,
   deployPlanOptions,
-  businessUnitID,
-  deployPlanID,
+  initialBusinessUnitID,
+  initialDeployPlanID,
   businessUnitOptionLoading = false,
   deployPlanOptionLoading = false,
   submitting = false,
@@ -55,24 +55,12 @@ export function TriggerBuildModal({
   onSubmit,
 }: TriggerBuildModalProps) {
   const [form] = Form.useForm();
+  const selectedBusinessUnitID = Form.useWatch('businessUnitID', form);
 
   const isNearPopupBottom = (event: UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
     return target.scrollHeight - target.scrollTop - target.clientHeight < 24;
   };
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    form.setFieldsValue({
-      businessUnitID,
-      deployPlanID,
-      refType: 'branch',
-      refValue: 'main',
-    } satisfies FormShape);
-  }, [businessUnitID, deployPlanID, form, open]);
 
   return (
     <Modal
@@ -94,7 +82,25 @@ export function TriggerBuildModal({
       <Form<FormShape>
         form={form}
         layout="vertical"
+        initialValues={{
+          businessUnitID: initialBusinessUnitID,
+          deployPlanID: initialDeployPlanID,
+          refType: 'branch',
+          refValue: 'main',
+        }}
         style={{ marginTop: 16 }}
+        onValuesChange={(changedValues) => {
+          if ('businessUnitID' in changedValues) {
+            onBusinessUnitChange(changedValues.businessUnitID as number | undefined);
+            onDeployPlanChange(undefined);
+            form.setFieldValue('deployPlanID', undefined);
+            return;
+          }
+
+          if ('deployPlanID' in changedValues) {
+            onDeployPlanChange(changedValues.deployPlanID as number | undefined);
+          }
+        }}
         onFinish={async (value) => {
           await onSubmit({
             deployPlanID: value.deployPlanID ?? 0,
@@ -123,11 +129,6 @@ export function TriggerBuildModal({
                 onBusinessUnitLoadMore();
               }
             }}
-            onChange={(value) => {
-              onBusinessUnitChange(value);
-              onDeployPlanChange(undefined);
-              form.setFieldValue('deployPlanID', undefined);
-            }}
           />
         </Form.Item>
 
@@ -141,7 +142,7 @@ export function TriggerBuildModal({
             placeholder="请选择部署计划"
             options={[...deployPlanOptions]}
             loading={deployPlanOptionLoading}
-            disabled={!businessUnitID}
+            disabled={!selectedBusinessUnitID}
             showSearch
             filterOption={false}
             onSearch={onDeployPlanSearch}
@@ -150,7 +151,6 @@ export function TriggerBuildModal({
                 onDeployPlanLoadMore();
               }
             }}
-            onChange={onDeployPlanChange}
           />
         </Form.Item>
 
@@ -174,7 +174,6 @@ export function TriggerBuildModal({
           name="refValue"
           label="代码版本值"
           rules={[{ required: true, message: '请输入代码版本值' }]}
-          initialValue="main"
         >
           <Input placeholder="例如：main / v1.2.3 / a1b2c3d4" />
         </Form.Item>

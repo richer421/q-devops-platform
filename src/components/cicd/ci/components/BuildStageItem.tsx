@@ -1,11 +1,8 @@
 import { Tag } from 'antd';
 import type { BuildRecord } from '@/utils/api/q-ci/build';
 import { formatDateTimeYMDHM } from '@/utils/format/date-time';
-import {
-  formatElapsedDuration,
-  getStageStatusMeta,
-} from './buildStagePresentation';
-import { CicdStepContainer } from './CicdStepContainer';
+import { CicdStepContainer, formatElapsedDuration } from '@/components/cicd/shared';
+import { getStageStatusMeta } from './buildStagePresentation';
 
 type BuildStage = BuildRecord['stages'][number];
 
@@ -69,6 +66,8 @@ export function BuildStageItem({
       title={stage.title}
       status={stage.status}
       duration={duration}
+      startedAt={stage.startedAt}
+      finishedAt={stage.finishedAt}
       defaultOpen={defaultOpen}
       note={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

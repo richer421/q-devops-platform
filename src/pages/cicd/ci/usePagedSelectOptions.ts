@@ -55,6 +55,7 @@ export function usePagedSelectOptions({
   pageSize = DEFAULT_PAGE_SIZE,
 }: UsePagedSelectOptionsParams) {
   const loadPageRef = useRef(loadPage);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIDRef = useRef(0);
   const loadingRef = useRef(false);
   const currentPageRef = useRef(0);
@@ -70,6 +71,10 @@ export function usePagedSelectOptions({
   }, [loadPage]);
 
   const resetState = useCallback(() => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
     requestIDRef.current += 1;
     loadingRef.current = false;
     currentPageRef.current = 0;
@@ -151,12 +156,30 @@ export function usePagedSelectOptions({
     }
 
     const trimmedKeyword = keyword.trim();
-    void runPageLoad({
-      page: 1,
-      keyword: trimmedKeyword,
-      mode: 'replace',
-    });
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
+
+    const delay = trimmedKeyword ? 260 : 0;
+    searchTimerRef.current = setTimeout(() => {
+      searchTimerRef.current = null;
+      void runPageLoad({
+        page: 1,
+        keyword: trimmedKeyword,
+        mode: 'replace',
+      });
+    }, delay);
   }, [enabled, runPageLoad]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const loadMore = useCallback(() => {
     if (!enabled || loadingRef.current || optionsRef.current.length >= totalRef.current) {

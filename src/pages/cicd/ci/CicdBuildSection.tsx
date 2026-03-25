@@ -1,8 +1,8 @@
 import { Button, ConfigProvider, Empty, Select, Spin, Typography } from 'antd';
 import { useEffect, useRef } from 'react';
-import { BuildCard } from '../../../components/cicd/BuildCard';
-import type { BuildWorkspaceView } from '../useBuildWorkspace';
-import { isNearPopupBottom } from '../utils';
+import { BuildCard } from '@/components/cicd/ci';
+import type { BuildWorkspaceView } from './useBuildWorkspace';
+import { isNearPopupBottom } from './utils';
 
 const { Text } = Typography;
 

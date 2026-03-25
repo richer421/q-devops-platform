@@ -17,7 +17,58 @@ const POD_PHASE_STYLE: Record<PodPhase, PodPhaseStyle> = {
   Pending: { color: '#86909C', label: 'Pending', pulse: false },
 };
 
-const POD_GRID_ORDER: PodPhase[] = ['Running', 'ContainerCreating', 'Pending', 'Terminating'];
+const POD_ORDER_INDEX: Record<PodPhase, number> = {
+  Running: 0,
+  ContainerCreating: 1,
+  Pending: 2,
+  Terminating: 3,
+};
+
+const STYLES = {
+  card: {
+    borderRadius: 12,
+    border: '1px solid #E5E6EB',
+    background: '#FAFAFA',
+    padding: 16,
+  },
+  podSquare: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    transition: 'all 0.7s',
+    cursor: 'default',
+  },
+  legendRow: { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 },
+  legendItem: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 },
+  legendDot: { width: 10, height: 10, borderRadius: 2 },
+  podGrid: { display: 'flex', flexWrap: 'wrap', gap: 4 },
+  canaryWeightRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+    fontSize: 11,
+  },
+  trafficTrack: {
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+    display: 'flex',
+    background: '#E5E6EB',
+  },
+  metricsRow: { display: 'flex', gap: 24, marginTop: 16, fontSize: 12 },
+  columnsTwo: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 },
+  sectionTitleRow: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 },
+  sectionDot: { width: 8, height: 8, borderRadius: '50%' },
+  lightText11: { fontSize: 11, color: '#C9CDD4' },
+  progressHead: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden', background: '#E5E6EB' },
+  progressFill: { height: '100%', borderRadius: 3, transition: 'width 0.7s' },
+} as const;
 
 function PodSquare({ pod }: { pod: PodEntry }) {
   const style = POD_PHASE_STYLE[pod.phase];
@@ -34,11 +85,7 @@ function PodSquare({ pod }: { pod: PodEntry }) {
     >
       <div
         style={{
-          width: 20,
-          height: 20,
-          borderRadius: 4,
-          transition: 'all 0.7s',
-          cursor: 'default',
+          ...STYLES.podSquare,
           background: pod.phase === 'Terminating' ? `${style.color}55` : `${style.color}BB`,
           border: `1.5px solid ${style.color}`,
           opacity: pod.phase === 'Pending' ? 0.35 : 1,
@@ -57,18 +104,16 @@ function PodStatusLegend({ pods }: { pods: PodEntry[] }) {
   }, {});
 
   return (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+    <div style={STYLES.legendRow}>
       {order
         .filter((phase) => counts[phase])
         .map((phase) => {
           const style = POD_PHASE_STYLE[phase];
           return (
-            <span key={phase} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+            <span key={phase} style={STYLES.legendItem}>
               <div
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
+                  ...STYLES.legendDot,
                   background: `${style.color}BB`,
                   border: `1.5px solid ${style.color}`,
                 }}
@@ -84,12 +129,12 @@ function PodStatusLegend({ pods }: { pods: PodEntry[] }) {
 
 function PodGrid({ pods }: { pods: PodEntry[] }) {
   const sorted = useMemo(
-    () => [...pods].sort((a, b) => POD_GRID_ORDER.indexOf(a.phase) - POD_GRID_ORDER.indexOf(b.phase)),
+    () => [...pods].sort((a, b) => POD_ORDER_INDEX[a.phase] - POD_ORDER_INDEX[b.phase]),
     [pods],
   );
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+    <div style={STYLES.podGrid}>
       {sorted.map((pod) => (
         <PodSquare key={pod.id} pod={pod} />
       ))}
@@ -148,9 +193,9 @@ export function PodRollout({ data }: { data: RolloutData }) {
     const canary = pods.filter((pod) => pod.version === 'new');
 
     return (
-      <div style={{ borderRadius: 12, border: '1px solid #E5E6EB', background: '#FAFAFA', padding: 16 }}>
+      <div style={STYLES.card}>
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11 }}>
+          <div style={STYLES.canaryWeightRow}>
             <span style={{ color: '#86909C' }}>
               Stable <span style={{ fontWeight: 600, color: '#4E5969' }}>{100 - weight}%</span>
             </span>
@@ -158,15 +203,7 @@ export function PodRollout({ data }: { data: RolloutData }) {
               Canary <span style={{ fontWeight: 600, color: '#7B61FF' }}>{weight}%</span>
             </span>
           </div>
-          <div
-            style={{
-              height: 10,
-              borderRadius: 5,
-              overflow: 'hidden',
-              display: 'flex',
-              background: '#E5E6EB',
-            }}
-          >
+          <div style={STYLES.trafficTrack}>
             <div
               style={{
                 height: '100%',
@@ -187,7 +224,7 @@ export function PodRollout({ data }: { data: RolloutData }) {
         </div>
 
         {data.metrics && (
-          <div style={{ display: 'flex', gap: 24, marginTop: 16, fontSize: 12 }}>
+          <div style={STYLES.metricsRow}>
             <span style={{ color: '#86909C' }}>
               p99 延迟 <span style={{ color: '#1D2129', fontWeight: 600 }}>{data.metrics.p99}ms</span>
             </span>
@@ -202,22 +239,22 @@ export function PodRollout({ data }: { data: RolloutData }) {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}>
+        <div style={STYLES.columnsTwo}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4E5969' }} />
+            <div style={STYLES.sectionTitleRow}>
+              <div style={{ ...STYLES.sectionDot, background: '#4E5969' }} />
               <span style={{ fontSize: 11, fontWeight: 500, color: '#86909C' }}>Stable · {data.oldVersion}</span>
-              <span style={{ fontSize: 11, color: '#C9CDD4' }}>{stable.length} pods</span>
+              <span style={STYLES.lightText11}>{stable.length} pods</span>
             </div>
             <PodGrid pods={stable} />
             <PodStatusLegend pods={stable} />
           </div>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7B61FF' }} />
+            <div style={STYLES.sectionTitleRow}>
+              <div style={{ ...STYLES.sectionDot, background: '#7B61FF' }} />
               <span style={{ fontSize: 11, fontWeight: 500, color: '#7B61FF' }}>Canary · {data.newVersion}</span>
-              <span style={{ fontSize: 11, color: '#C9CDD4' }}>{canary.length} pods</span>
+              <span style={STYLES.lightText11}>{canary.length} pods</span>
             </div>
             <PodGrid pods={canary} />
             <PodStatusLegend pods={canary} />
@@ -230,18 +267,12 @@ export function PodRollout({ data }: { data: RolloutData }) {
   const readyNew = newPods.filter((pod) => pod.phase === 'Running').length;
   const totalNew = data.pods.filter((pod) => pod.version === 'new').length;
   const hadOld = data.pods.some((pod) => pod.version === 'old');
+  const rolloutProgress = totalNew > 0 ? (readyNew / totalNew) * 100 : 0;
 
   return (
-    <div style={{ borderRadius: 12, border: '1px solid #E5E6EB', background: '#FAFAFA', padding: 16 }}>
+    <div style={STYLES.card}>
       <div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 6,
-          }}
-        >
+        <div style={STYLES.progressHead}>
           <span style={{ fontSize: 11, color: '#86909C' }}>滚动进度</span>
           <span
             style={{
@@ -253,24 +284,27 @@ export function PodRollout({ data }: { data: RolloutData }) {
             {readyNew} / {totalNew} 就绪
           </span>
         </div>
-        <div style={{ height: 6, borderRadius: 3, overflow: 'hidden', background: '#E5E6EB' }}>
+        <div style={STYLES.progressTrack}>
           <div
             style={{
-              height: '100%',
-              borderRadius: 3,
-              transition: 'width 0.7s',
-              width: `${(readyNew / totalNew) * 100}%`,
+              ...STYLES.progressFill,
+              width: `${rolloutProgress}%`,
               background: readyNew >= totalNew ? '#00B42A' : '#1664FF',
             }}
           />
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: hadOld ? '1fr 1fr' : '1fr', gap: 20, marginTop: 16 }}>
+      <div
+        style={{
+          ...STYLES.columnsTwo,
+          gridTemplateColumns: hadOld ? '1fr 1fr' : '1fr',
+        }}
+      >
         {hadOld && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#C9CDD4' }} />
+            <div style={STYLES.sectionTitleRow}>
+              <div style={{ ...STYLES.sectionDot, background: '#C9CDD4' }} />
               <span style={{ fontSize: 11, fontWeight: 500, color: '#86909C' }}>旧版本 · {data.oldVersion}</span>
               {oldPods.length > 0 ? (
                 <span style={{ fontSize: 11, color: '#FF7D00' }}>{oldPods.length} 删除中</span>
@@ -292,10 +326,10 @@ export function PodRollout({ data }: { data: RolloutData }) {
         )}
 
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1664FF' }} />
+          <div style={STYLES.sectionTitleRow}>
+            <div style={{ ...STYLES.sectionDot, background: '#1664FF' }} />
             <span style={{ fontSize: 11, fontWeight: 500, color: '#1664FF' }}>新版本 · {data.newVersion}</span>
-            <span style={{ fontSize: 11, color: '#C9CDD4' }}>{newPods.length} pods</span>
+            <span style={STYLES.lightText11}>{newPods.length} pods</span>
           </div>
           <PodGrid pods={newPods} />
           <PodStatusLegend pods={newPods} />

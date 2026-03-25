@@ -1,20 +1,22 @@
 import { PlayCircleOutlined, RocketOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 import { useMemo, useState } from 'react';
-import { ExecuteReleaseModal } from '../../components/cicd/ExecuteReleaseModal';
-import { TriggerBuildModal } from '../../components/cicd/TriggerBuildModal';
-import { CicdAnimationStyles } from '../../components/cicd/shared';
-import { BasePage } from '../../components/layout/page-container';
+import { TriggerBuildModal } from '@/components/cicd/ci';
+import { ExecuteReleaseModal } from '@/components/cicd/cd';
+import { CicdAnimationStyles } from '@/components/cicd/shared';
+import { BasePage } from '@/components/layout/page-container';
 import {
   PageHeaderTabs,
   type PageHeaderTabItem,
-} from '../../components/layout/page-header';
-import { CicdBuildSection } from './sections/CicdBuildSection';
-import { CicdReleaseSection } from './sections/CicdReleaseSection';
-import { useBuildWorkspace } from './useBuildWorkspace';
-import { useTriggerBuildModal } from './useTriggerBuildModal';
+} from '@/components/layout/page-header';
+import {
+  CicdBuildSection,
+  useBuildWorkspace,
+  useTriggerBuildModal,
+} from './ci';
+import { CicdReleaseSection } from './cd';
 
-type TabKey = 'ci' | 'release';
+type TabKey = 'ci' | 'cd';
 
 export function CicdPage() {
   const [tab, setTab] = useState<TabKey>('ci');
@@ -25,7 +27,7 @@ export function CicdPage() {
   const tabItems: ReadonlyArray<PageHeaderTabItem<TabKey>> = useMemo(
     () => [
       { id: 'ci', label: '自动构建', icon: <PlayCircleOutlined /> },
-      { id: 'release', label: '交付上线', icon: <RocketOutlined /> },
+      { id: 'cd', label: '交付上线', icon: <RocketOutlined /> },
     ],
     [],
   );
@@ -37,8 +39,6 @@ export function CicdPage() {
     selectedDeployPlanID: buildWorkspace.selectedDeployPlanID,
     selectedDeployPlanLabel: buildWorkspace.selectedDeployPlanLabel,
     submitting: buildWorkspace.triggering,
-    onBusinessUnitChange: buildWorkspace.setSelectedBusinessUnitID,
-    onDeployPlanChange: buildWorkspace.setSelectedDeployPlanID,
     onSubmit: buildWorkspace.submitTrigger,
   });
 
@@ -84,7 +84,7 @@ export function CicdPage() {
           }}
         >
           {tab === 'ci' ? <CicdBuildSection workspace={buildWorkspace} /> : null}
-          {tab === 'release' ? <CicdReleaseSection /> : null}
+          {tab === 'cd' ? <CicdReleaseSection /> : null}
         </div>
       </BasePage>
 
@@ -93,8 +93,8 @@ export function CicdPage() {
         onClose={() => setBuildModalOpen(false)}
         businessUnitOptions={triggerBuildModal.businessUnitOptions}
         deployPlanOptions={triggerBuildModal.deployPlanOptions}
-        businessUnitID={triggerBuildModal.businessUnitID}
-        deployPlanID={triggerBuildModal.deployPlanID}
+        initialBusinessUnitID={triggerBuildModal.businessUnitID}
+        initialDeployPlanID={triggerBuildModal.deployPlanID}
         businessUnitOptionLoading={triggerBuildModal.businessUnitOptionLoading}
         deployPlanOptionLoading={triggerBuildModal.deployPlanOptionLoading}
         submitting={triggerBuildModal.submitting}
