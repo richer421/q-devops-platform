@@ -1,7 +1,6 @@
 import { Alert, Modal, Typography } from 'antd';
-import { CDConfigDrawer } from '../../../components/business/CDConfigDrawer';
-import { CDConfigsTable } from '../../../components/business/ConfigTables';
-import type { BusinessUnit, CDConfig, DeployPlan } from '../../../mock';
+import { CDConfigDrawer, CDConfigsTable } from '@/components/business/cd-config';
+import type { BusinessUnit, CDConfig, DeployPlan } from '@/mock';
 import { useCDConfigTab } from '../useCDConfigTab';
 
 type BusinessCDConfigsSectionProps = {

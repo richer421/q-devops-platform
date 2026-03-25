@@ -1,6 +1,6 @@
 import { message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { BusinessUnit, CDConfig, DeployPlan } from '../../mock';
+import type { BusinessUnit, CDConfig, DeployPlan } from '@/mock';
 import {
   createBusinessUnitCDConfig,
   deleteCDConfig,
@@ -8,8 +8,8 @@ import {
   listBusinessUnitCDConfigs,
   updateCDConfig,
   type CDConfigFormValue,
-} from '../../lib/metahub-cd-config';
-import type { CDConfigDrawerMode } from '../../components/business/CDConfigDrawer';
+} from '@/utils/api/metahub/cd-config';
+import type { CDConfigDrawerMode } from '@/utils/types/business/cd-config';
 
 type UseCDConfigTabOptions = {
   businessKey?: string;

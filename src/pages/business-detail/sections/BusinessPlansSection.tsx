@@ -1,9 +1,11 @@
 import { Alert, Modal, Typography } from 'antd';
-import { DeployPlanDetailDrawer } from '../../../components/business/deploy-plan/DeployPlanDetailDrawer';
-import { DeployPlanFormModal } from '../../../components/business/deploy-plan/DeployPlanFormModal';
-import { DeployPlanTablePanel } from '../../../components/business/deploy-plan/DeployPlanTablePanel';
-import { DeployPlansTable } from '../../../components/business/DeployPlansTable';
-import type { DeployPlan } from '../../../mock';
+import {
+  DeployPlanDetailDrawer,
+  DeployPlanFormModal,
+  DeployPlanTablePanel,
+  DeployPlansTable,
+} from '@/components/business/deploy-plan';
+import type { DeployPlan } from '@/mock';
 import { useDeployPlanTab } from '../useDeployPlanTab';
 
 type BusinessPlansSectionProps = {

@@ -1,11 +1,11 @@
 import { Empty, Space } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { BusinessSummary } from '../../components/business/BusinessSummary';
+import { BusinessSummary } from '@/components/business/business-unit';
 import { BasePage } from '../../components/layout/page-container';
 import { PageHeaderTabs, type PageHeaderTabItem } from '../../components/layout/page-header';
-import type { BusinessUnit } from '../../mock';
-import { businessInstanceConfigs, businesses, cdConfigs, ciConfigs, deployPlans } from '../../mock';
+import type { BusinessUnit } from '@/mock';
+import { businessInstanceConfigs, businesses, cdConfigs, ciConfigs, deployPlans } from '@/mock';
 import { BusinessCDConfigsSection } from './sections/BusinessCDConfigsSection';
 import { BusinessCIConfigsSection } from './sections/BusinessCIConfigsSection';
 import { BusinessInstancesSection } from './sections/BusinessInstancesSection';

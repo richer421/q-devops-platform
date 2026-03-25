@@ -8,8 +8,8 @@ import {
   updateInstanceOAM,
   type CreateInstanceFromTemplatePayload,
   type InstanceTemplate,
-} from '../../lib/metahub-instance-oam';
-import type { Instance } from '../../mock';
+} from '@/utils/api/metahub/instance-oam';
+import type { Instance } from '@/mock';
 
 type UseBusinessInstancesTabOptions = {
   businessKey?: string;

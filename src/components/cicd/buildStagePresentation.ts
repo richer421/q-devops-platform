@@ -1,4 +1,4 @@
-import type { BuildRecord, BuildStageStatus } from '../../lib/q-ci-build';
+import type { BuildRecord, BuildStageStatus } from '@/utils/api/q-ci/build';
 
 type BuildStage = BuildRecord['stages'][number];
 

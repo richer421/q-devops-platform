@@ -1,6 +1,6 @@
 import { Tag } from 'antd';
-import type { BuildRecord } from '../../lib/q-ci-build';
-import { formatDateTimeYMDHM } from '../../lib/date-time';
+import type { BuildRecord } from '@/utils/api/q-ci/build';
+import { formatDateTimeYMDHM } from '@/utils/format/date-time';
 import {
   formatElapsedDuration,
   getStageStatusMeta,

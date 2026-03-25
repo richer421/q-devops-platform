@@ -1,7 +1,7 @@
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { Form, Input, Modal, Radio, Select, Typography } from 'antd';
 import { useEffect, type UIEvent } from 'react';
-import type { TriggerBuildPayload } from '../../lib/q-ci-build';
+import type { TriggerBuildPayload } from '@/utils/api/q-ci/build';
 
 const { Text } = Typography;
 

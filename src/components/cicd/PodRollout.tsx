@@ -1,6 +1,6 @@
 import { Tooltip, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import type { PodEntry, PodPhase, RolloutData } from '../../mock';
+import type { PodEntry, PodPhase, RolloutData } from '@/mock';
 
 const { Text } = Typography;
 

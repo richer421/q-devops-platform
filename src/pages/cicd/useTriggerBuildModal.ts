@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { listBusinessUnits } from '../../lib/metahub-business-unit';
-import { listBusinessUnitDeployPlans } from '../../lib/metahub-deploy-plan';
-import type { TriggerBuildPayload } from '../../lib/q-ci-build';
+import { listBusinessUnits } from '@/utils/api/metahub/business-unit';
+import { listBusinessUnitDeployPlans } from '@/utils/api/metahub/deploy-plan';
+import type { TriggerBuildPayload } from '@/utils/api/q-ci/build';
 import { usePagedSelectOptions } from './usePagedSelectOptions';
 import { withSelectedOption } from './utils';
 

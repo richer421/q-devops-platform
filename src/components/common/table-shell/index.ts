@@ -1,0 +1,1 @@
+export { TablePanelShell } from './TablePanelShell';

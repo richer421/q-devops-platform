@@ -1,9 +1,11 @@
 import { Alert, Modal, Typography } from 'antd';
-import { CIConfigDetailDrawer } from '../../../components/business/ci-config/CIConfigDetailDrawer';
-import { CIConfigFormModal } from '../../../components/business/ci-config/CIConfigFormModal';
-import { CIConfigTablePanel } from '../../../components/business/ci-config/CIConfigTablePanel';
-import { CIConfigsTable } from '../../../components/business/ConfigTables';
-import type { CIConfig } from '../../../mock';
+import {
+  CIConfigDetailDrawer,
+  CIConfigFormModal,
+  CIConfigTablePanel,
+  CIConfigsTable,
+} from '@/components/business/ci-config';
+import type { CIConfig } from '@/mock';
 import { useCIConfigTab } from '../useCIConfigTab';
 
 type BusinessCIConfigsSectionProps = {

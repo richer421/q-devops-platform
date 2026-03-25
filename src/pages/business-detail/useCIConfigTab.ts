@@ -9,7 +9,7 @@ import {
   updateCIConfig,
   type CIConfigFormValue,
   type CIConfigItem,
-} from '../../lib/metahub-ci-config';
+} from '@/utils/api/metahub/ci-config';
 
 type UseCIConfigTabOptions = {
   businessUnitID: number | null;

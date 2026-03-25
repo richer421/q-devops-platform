@@ -2,10 +2,13 @@ import { Button, message } from 'antd';
 import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BusinessDeleteModal } from '../../components/business/BusinessDeleteModal';
-import { BusinessListPanel } from '../../components/business/BusinessListPanel';
-import { BusinessModal, type BusinessFormValue } from '../../components/business/BusinessModal';
-import type { BusinessTableRow } from '../../components/business/BusinessTable';
+import {
+  BusinessDeleteModal,
+  BusinessListPanel,
+  BusinessModal,
+  type BusinessFormValue,
+  type BusinessTableRow,
+} from '@/components/business/business-unit';
 import { BasePage } from '../../components/layout/page-container';
 import {
   createBusinessUnit,
@@ -13,8 +16,8 @@ import {
   listBusinessUnits,
   updateBusinessUnit,
   type BusinessUnitRecord,
-} from '../../lib/metahub-business-unit';
-import { findProjectCatalogItem, projectCatalog } from '../../lib/project-catalog';
+} from '@/utils/api/metahub/business-unit';
+import { findProjectCatalogItem, projectCatalog } from '@/utils/project-catalog';
 
 const emptyBusinessForm: BusinessFormValue = {
   name: '',

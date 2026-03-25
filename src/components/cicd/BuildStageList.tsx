@@ -1,4 +1,4 @@
-import type { BuildRecord } from '../../lib/q-ci-build';
+import type { BuildRecord } from '@/utils/api/q-ci/build';
 import { CicdStepContainer } from './CicdStepContainer';
 import { BuildStageItem } from './BuildStageItem';
 import { getCurrentBuildStage } from './buildStagePresentation';

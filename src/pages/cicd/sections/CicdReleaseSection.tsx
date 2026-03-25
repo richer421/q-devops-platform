@@ -1,5 +1,5 @@
 import { ReleaseCard } from '../../../components/cicd/ReleaseCard';
-import { releaseStages, releases } from '../../../mock';
+import { releaseStages, releases } from '@/mock';
 
 export function CicdReleaseSection() {
   return (

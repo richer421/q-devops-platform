@@ -8,11 +8,11 @@ import {
   listBusinessUnitDeployPlans,
   updateDeployPlan,
   type DeployPlanFormValue,
-} from '../../lib/metahub-deploy-plan';
-import { listBusinessUnitCDConfigs } from '../../lib/metahub-cd-config';
-import { listBusinessUnitCIConfigs } from '../../lib/metahub-ci-config';
-import { listBusinessUnitInstanceOAMs } from '../../lib/metahub-instance-oam';
-import type { DeployPlan } from '../../mock';
+} from '@/utils/api/metahub/deploy-plan';
+import { listBusinessUnitCDConfigs } from '@/utils/api/metahub/cd-config';
+import { listBusinessUnitCIConfigs } from '@/utils/api/metahub/ci-config';
+import { listBusinessUnitInstanceOAMs } from '@/utils/api/metahub/instance-oam';
+import type { DeployPlan } from '@/mock';
 
 type UseDeployPlanTabOptions = {
   businessUnitID: number | null;

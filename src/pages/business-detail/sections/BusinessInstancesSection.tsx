@@ -1,5 +1,5 @@
-import { BusinessInstancesPanel } from '../../../components/business/BusinessInstancesPanel';
-import type { Instance } from '../../../mock';
+import { BusinessInstancesPanel } from '@/components/business/instances';
+import type { Instance } from '@/mock';
 import { useBusinessInstancesTab } from '../useBusinessInstancesTab';
 
 type BusinessInstancesSectionProps = {
