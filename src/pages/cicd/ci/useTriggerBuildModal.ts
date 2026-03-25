@@ -12,8 +12,6 @@ type UseTriggerBuildModalParams = {
   selectedDeployPlanID?: number;
   selectedDeployPlanLabel?: string;
   submitting?: boolean;
-  onBusinessUnitChange: (value: number | undefined) => void;
-  onDeployPlanChange: (value: number | undefined) => void;
   onSubmit: (payload: TriggerBuildPayload) => Promise<void>;
 };
 
@@ -24,8 +22,6 @@ export function useTriggerBuildModal({
   selectedDeployPlanID,
   selectedDeployPlanLabel,
   submitting = false,
-  onBusinessUnitChange,
-  onDeployPlanChange,
   onSubmit,
 }: UseTriggerBuildModalParams) {
   const [businessUnitID, setBusinessUnitID] = useState<number>();
@@ -84,21 +80,6 @@ export function useTriggerBuildModal({
     },
   });
 
-  useEffect(() => {
-    if (!open || !businessUnitID) {
-      setDeployPlanID(undefined);
-      return;
-    }
-
-    const hasMatchedOption = deployPlanOptionsSource.options.some(
-      (item) => item.value === deployPlanID,
-    );
-
-    if (!hasMatchedOption) {
-      setDeployPlanID(undefined);
-    }
-  }, [businessUnitID, deployPlanID, deployPlanOptionsSource.options, open]);
-
   const businessUnitOptions = useMemo(
     () =>
       withSelectedOption(
@@ -107,8 +88,8 @@ export function useTriggerBuildModal({
         businessUnitID === selectedBusinessUnitID ? selectedBusinessUnitLabel : '',
       ),
     [
-      businessUnitID,
       businessUnitOptionsSource.options,
+      businessUnitID,
       selectedBusinessUnitID,
       selectedBusinessUnitLabel,
     ],
@@ -125,8 +106,8 @@ export function useTriggerBuildModal({
       ),
     [
       businessUnitID,
-      deployPlanID,
       deployPlanOptionsSource.options,
+      deployPlanID,
       selectedBusinessUnitID,
       selectedDeployPlanID,
       selectedDeployPlanLabel,
@@ -141,9 +122,11 @@ export function useTriggerBuildModal({
     deployPlanOptionsSource.reset();
   };
 
+  const handleDeployPlanChange = (value: number | undefined) => {
+    setDeployPlanID(value);
+  };
+
   const handleSubmit = async (payload: TriggerBuildPayload) => {
-    onBusinessUnitChange(businessUnitID);
-    onDeployPlanChange(payload.deployPlanID);
     await onSubmit(payload);
   };
 
@@ -156,7 +139,7 @@ export function useTriggerBuildModal({
     deployPlanOptionLoading: deployPlanOptionsSource.loading,
     submitting,
     setBusinessUnitID: handleBusinessUnitChange,
-    setDeployPlanID,
+    setDeployPlanID: handleDeployPlanChange,
     searchBusinessUnits: businessUnitOptionsSource.search,
     searchDeployPlans: deployPlanOptionsSource.search,
     loadMoreBusinessUnits: businessUnitOptionsSource.loadMore,

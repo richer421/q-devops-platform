@@ -6,7 +6,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import { useEffect, useRef, useState } from 'react';
-import { formatElapsedDuration } from './buildStagePresentation';
+import { formatElapsedDuration } from './duration';
 
 export type StepStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped';
 
@@ -150,29 +150,31 @@ export function ElapsedTimer({
   startedAt?: string;
   finishedAt?: string;
 }) {
-  const [tick, setTick] = useState(0);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     if (!running) {
       return;
     }
-    const timer = window.setInterval(() => setTick((value) => value + 1), 1000);
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [running]);
 
-  if (!running) {
+  if (!running || !startedAt) {
     return null;
   }
 
-  const duration = formatElapsedDuration(startedAt, finishedAt);
-  const fallbackSeconds = 182 + tick;
-  const fallbackMinutes = Math.floor(fallbackSeconds / 60);
-  const fallbackRemainSeconds = fallbackSeconds % 60;
+  const duration = formatElapsedDuration(startedAt, finishedAt, nowMs);
+  if (!duration) {
+    return null;
+  }
 
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#1664FF', fontSize: 12 }}>
       <ClockCircleOutlined style={{ fontSize: 11 }} />
-      {duration ?? `${fallbackMinutes}m ${String(fallbackRemainSeconds).padStart(2, '0')}s`}
+      {duration}
     </span>
   );
 }

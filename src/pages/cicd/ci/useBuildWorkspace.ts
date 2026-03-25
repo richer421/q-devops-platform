@@ -1,6 +1,5 @@
 import { message } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { formatDateTimeYMDHM } from '@/utils/format/date-time';
 import { listBusinessUnits } from '@/utils/api/metahub/business-unit';
 import { listBusinessUnitDeployPlans } from '@/utils/api/metahub/deploy-plan';
 import {
@@ -243,7 +242,6 @@ export function useBuildWorkspace() {
     setTriggering(true);
     try {
       await triggerBuild(payload);
-      setSelectedDeployPlanID(payload.deployPlanID);
       refreshBuilds();
       void message.success('构建已触发，Jenkins 正在接管执行');
     } catch (error) {
@@ -269,8 +267,6 @@ export function useBuildWorkspace() {
     loading,
     loadingMoreBuilds,
     hasMoreBuilds: builds.length < buildTotal,
-    optionLoading:
-      businessUnitOptionsSource.loading || deployPlanOptionsSource.loading,
     triggering,
     setSelectedBusinessUnitID: handleBusinessUnitChange,
     setSelectedDeployPlanID,
@@ -281,7 +277,6 @@ export function useBuildWorkspace() {
     loadMoreBuilds,
     refreshBuilds,
     submitTrigger,
-    formatDateTime: formatDateTimeYMDHM,
   };
 }
 

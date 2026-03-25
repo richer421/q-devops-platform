@@ -85,8 +85,10 @@
 - 回退后，应基于最近一个被用户认可的稳定状态重新实施调整。
 - 如果只是局部实现错误，可以精确回退局部改动；前提是错误边界足够明确，不能含混处理。
 
-### 7. React 最佳实践 Skill
+### 7. 前端架构与 React 最佳实践 Skill
 
+- 前端架构设计（目录组织、组件边界、门面导出、跨域依赖治理）优先参考主仓：`../.codex/skills/domain-oriented-components/SKILL.md`。
+- 前端代码设计（状态组织、渲染性能、hooks、数据流与可维护性）优先参考：`react-best-practices` skill。
 - 如果判定本轮前端改动较大，必须先使用 `react-best-practices` skill，再进入实现。
 - 如果本轮任务属于新模块、新页面或新的大型交互区块搭建，也必须先使用 `react-best-practices` skill。
 - “改动较大”至少包括：页面级重构、组件树明显重排、状态流重组、hook 与组件同时重写、存在明显性能或 bundle 风险。

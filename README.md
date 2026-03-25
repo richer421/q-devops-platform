@@ -9,6 +9,11 @@ make install
 make dev
 ```
 
+## Frontend Skill References
+
+- 前端架构设计（目录组织、组件边界、门面导出、跨域依赖治理）参考：`../.codex/skills/domain-oriented-components/SKILL.md`
+- 前端代码设计（状态组织、渲染性能、hooks、数据流与可维护性）参考：`react-best-practices` skill
+
 ## Local Ports
 
 本地联调默认使用下面这组端口：
